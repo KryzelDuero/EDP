@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Building2, UserCheck, Search, Plus, Pencil, Trash2, X, Menu, ChevronLeft, ChevronRight } from 'lucide-react';
-// import zipCodeData from './zipcodes.json'; // Removed in favor of live API
 
 const EmployeeDashboard = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -84,9 +83,16 @@ const EmployeeDashboard = () => {
     essentialFunctions: '',
     permanent: '',
     heardAboutPosition: '',
+    workedBefore: '',
+    workedWhen: '',
     regionCode: '',
     provinceCode: '',
-    cityCode: ''
+    cityCode: '',
+    canWorkOvertime: '',
+    hasDriversLicense: '',
+    licenseIssuingState: '',
+    shiftTypes: [],
+    otherShiftType: ''
   });
 
   // Address Data States
@@ -94,7 +100,7 @@ const EmployeeDashboard = () => {
   const [provinces, setProvinces] = useState([]);
   const [cities, setCities] = useState([]);
   const [barangays, setBarangays] = useState([]);
-  const [zipCodeMap, setZipCodeMap] = useState({}); // State for API data
+  const [zipCodeMap, setZipCodeMap] = useState({});
 
   const [selectedPosition, setSelectedPosition] = useState('');
 
@@ -163,7 +169,6 @@ const EmployeeDashboard = () => {
       .then(data => setRegions(data.sort((a, b) => a.name.localeCompare(b.name))))
       .catch(err => console.error('Error fetching regions:', err));
 
-    // Fetch Zip Codes from PSGC Cloud API
     const fetchZipCodes = async () => {
       try {
         const [citiesRes, munisRes] = await Promise.all([
@@ -178,11 +183,8 @@ const EmployeeDashboard = () => {
         const processMsg = (list) => {
           list.forEach(item => {
             if (item.zip_code) {
-              // Normalize keys for robust lookup
               const cleanName = item.name.replace(/City of /i, '').replace(/Municipality of /i, '').trim().toLowerCase();
               newMap[cleanName] = item.zip_code;
-
-              // Also store normalized version (no special chars)
               const normalized = cleanName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
               if (normalized !== cleanName) {
                 newMap[normalized] = item.zip_code;
@@ -193,9 +195,7 @@ const EmployeeDashboard = () => {
 
         processMsg(citiesData);
         processMsg(munisData);
-
         setZipCodeMap(newMap);
-        console.log('Zip codes fetched from API:', Object.keys(newMap).length);
       } catch (error) {
         console.error('Error fetching zip codes from API:', error);
       }
@@ -248,25 +248,11 @@ const EmployeeDashboard = () => {
     const cityCode = e.target.value;
     const cityName = e.target.options[e.target.selectedIndex].text;
 
-    // Zip Code Lookup Logic (Removed per request)
-    // Normalize city name (remove "City of", "Municipality of", etc)
-    // const cleanCityName = cityName.replace(/City of /i, '').replace(/Municipality of /i, '').trim().toLowerCase();
-
-    // Direct lookup from API map
-    // let foundZip = zipCodeMap[cleanCityName] || '';
-
-    // Fallback: normalized lookup (remove diacritics like ñ)
-    // if (!foundZip && cityName) {
-    //     const normalized = cleanCityName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    //     foundZip = zipCodeMap[normalized] || '';
-    // }
-
     setFormData(prev => ({
       ...prev,
       city: cityName,
       cityCode: cityCode,
-      barangay: '',
-      // zipCode: foundZip // Auto-populate removed
+      barangay: ''
     }));
 
     fetch(`https://psgc.gitlab.io/api/cities-municipalities/${cityCode}/barangays/`)
@@ -311,9 +297,16 @@ const EmployeeDashboard = () => {
       essentialFunctions: '',
       permanent: '',
       heardAboutPosition: '',
+      workedBefore: '',
+      workedWhen: '',
       regionCode: '',
       provinceCode: '',
-      cityCode: ''
+      cityCode: '',
+      canWorkOvertime: '',
+      hasDriversLicense: '',
+      licenseIssuingState: '',
+      shiftTypes: [],
+      otherShiftType: ''
     });
   };
 
@@ -508,7 +501,6 @@ const EmployeeDashboard = () => {
       <div className="flex min-h-screen">
         {/* Sidebar */}
         <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-2xl transition-all duration-300 ease-in-out flex flex-col sticky top-0 h-screen z-10`}>
-          {/* Logo Section */}
           <div className="p-6 border-b border-slate-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -530,7 +522,6 @@ const EmployeeDashboard = () => {
             </div>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2">
             <button
               onClick={() => setCurrentPage('dashboard')}
@@ -561,7 +552,6 @@ const EmployeeDashboard = () => {
           <div className="w-full p-4">
             {currentPage === 'dashboard' && (
               <div className="space-y-8">
-                {/* Header */}
                 <div className="card-enter">
                   <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-800 to-indigo-600 bg-clip-text text-transparent mb-2">
                     Dashboard
@@ -569,7 +559,6 @@ const EmployeeDashboard = () => {
                   <p className="text-slate-500 text-lg">Welcome back! Here's your overview</p>
                 </div>
 
-                {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="stat-card card-enter bg-white rounded-2xl p-8 shadow-xl hover-lift border border-slate-100" style={{ animationDelay: '0.1s' }}>
                     <div className="flex items-start justify-between">
@@ -614,7 +603,6 @@ const EmployeeDashboard = () => {
                   </div>
                 </div>
 
-                {/* Recent Activity */}
                 <div className="card-enter bg-white rounded-2xl p-8 shadow-xl border border-slate-100" style={{ animationDelay: '0.4s' }}>
                   <h2 className="text-2xl font-bold text-slate-800 mb-6">Recent Activity</h2>
                   <div className="space-y-4">
@@ -686,7 +674,6 @@ const EmployeeDashboard = () => {
                   </div>
                 </div>
 
-                {/* Employee Table */}
                 <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 flex flex-col">
                   {/* Desktop Table */}
                   <div className="hidden lg:block overflow-x-auto flex-1">
@@ -703,7 +690,7 @@ const EmployeeDashboard = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {currentItems.map((employee, index) => (
+                        {currentItems.map((employee) => (
                           <tr key={employee.id} className="table-row">
                             <td className="px-3 py-4 whitespace-nowrap">
                               <span className="badge font-bold text-slate-700">{employee.id}</span>
@@ -784,10 +771,8 @@ const EmployeeDashboard = () => {
                       </div>
                     ))}
                   </div>
-
                 </div>
 
-                {/* Pagination Controls */}
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                   <p className="text-sm text-slate-500 text-center md:text-left">
                     Showing <span className="font-bold">{indexOfFirstItem + 1}</span> to <span className="font-bold">{Math.min(indexOfLastItem, filteredEmployees.length)}</span> of <span className="font-bold">{filteredEmployees.length}</span> results
@@ -845,7 +830,6 @@ const EmployeeDashboard = () => {
               </button>
             </div>
 
-            {/* Progress Bar */}
             <div className="w-full h-2 bg-slate-100 rounded-full mb-8 overflow-hidden">
               <div
                 className="h-full bg-indigo-600 transition-all duration-500 ease-in-out"
@@ -964,7 +948,6 @@ const EmployeeDashboard = () => {
 
                   <div className="border-t border-slate-100 pt-4">
                     <h3 className="text-lg font-bold text-slate-800 mb-4">Address Information</h3>
-
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2">Region</label>
@@ -1048,9 +1031,10 @@ const EmployeeDashboard = () => {
                     </div>
 
                     <div className="space-y-4 mb-4">
-                      <div className="flex items-center space-x-4">
-                        <label className="text-sm font-semibold text-slate-700">Can you perform the position's essential functions with or without accommodations?</label>
+                      <div className="flex flex-col items-start gap-2">
+                        <label className="text-sm font-semibold text-slate-700">Can you perform the position's essential functions</label>
                         <div className="flex items-center space-x-6">
+                          <span className="text-sm font-semibold text-slate-700">with or without accommodations?</span>
                           <label className="flex items-center space-x-2">
                             <input
                               type="checkbox"
@@ -1103,11 +1087,135 @@ const EmployeeDashboard = () => {
                         type="text"
                         value={formData.heardAboutPosition}
                         onChange={(e) => setFormData({ ...formData, heardAboutPosition: e.target.value })}
-                        className="w-full px-2 py-2 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
+                        className="w-1/2 px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
                         placeholder="Min. of 200 characters"
                       />
                     </div>
 
+                    <div className="flex flex-col md:flex-row gap-4 mb-8">
+                      <div className="w-full md:w-1/2">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Have you ever worked for this company?</label>
+                        <input
+                          type="text"
+                          value={formData.workedBefore}
+                          onChange={(e) => setFormData({ ...formData, workedBefore: e.target.value })}
+                          className="w-full px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
+                          placeholder="Yes/No"
+                        />
+                      </div>
+                      <div className="w-full md:w-1/2">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">If yes, when?</label>
+                        <input
+                          type="text"
+                          value={formData.workedWhen}
+                          onChange={(e) => setFormData({ ...formData, workedWhen: e.target.value })}
+                          className="w-full px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
+                          placeholder="Year/Date"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                        <p className="text-sm font-bold text-slate-800 tracking-wide">If necessary for the job, I can:</p>
+
+                        <div className="flex items-center space-x-6">
+                          <label className="text-sm font-semibold text-slate-700">Work overtime?</label>
+                          <div className="flex items-center space-x-6">
+                            <label className="flex items-center space-x-2 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={formData.canWorkOvertime === 'Yes'}
+                                onChange={() => setFormData({ ...formData, canWorkOvertime: 'Yes' })}
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                              />
+                              <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Yes</span>
+                            </label>
+                            <label className="flex items-center space-x-2 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={formData.canWorkOvertime === 'No'}
+                                onChange={() => setFormData({ ...formData, canWorkOvertime: 'No' })}
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                              />
+                              <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">No</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-6">
+                          <label className="text-sm font-semibold text-slate-700">Do you have a Driver's License?</label>
+                          <div className="flex items-center space-x-6">
+                            <label className="flex items-center space-x-2 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={formData.hasDriversLicense === 'Yes'}
+                                onChange={() => setFormData({ ...formData, hasDriversLicense: 'Yes' })}
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                              />
+                              <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Yes</span>
+                            </label>
+                            <label className="flex items-center space-x-2 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={formData.hasDriversLicense === 'No'}
+                                onChange={() => setFormData({ ...formData, hasDriversLicense: 'No' })}
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                              />
+                              <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">No</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={`space-y-4 transition-all duration-300 ${formData.hasDriversLicense === 'Yes' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden pointer-events-none'}`}>
+                          <div className="flex items-end gap-4">
+                            <label className="text-sm font-semibold text-slate-700 mb-4 whitespace-nowrap">If so, fill out the following: Issuing state:</label>
+                            <input
+                              type="text"
+                              value={formData.licenseIssuingState}
+                              onChange={(e) => setFormData({ ...formData, licenseIssuingState: e.target.value })}
+                              className="w-48 px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
+                              placeholder="State Name"
+                              disabled={formData.hasDriversLicense !== 'Yes'}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 pt-4 border-t border-slate-50">
+                        <label className="text-sm font-semibold text-slate-700">Type:</label>
+                        <div className="flex flex-wrap gap-x-6 gap-y-4">
+                          {['Any', 'Day', 'Night', 'Swing', 'Rotating', 'Split', 'Graveyard'].map((type) => {
+                            return (
+                              <label key={type} className="flex items-center space-x-2 cursor-pointer group">
+                                <input
+                                  type="checkbox"
+                                  checked={formData.shiftTypes.includes(type)}
+                                  onChange={() => {
+                                    const newTypes = formData.shiftTypes.includes(type)
+                                      ? formData.shiftTypes.filter(t => t !== type)
+                                      : [...formData.shiftTypes, type];
+                                    setFormData({ ...formData, shiftTypes: newTypes });
+                                  }}
+                                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">{type}</span>
+                              </label>
+                            );
+                          })}
+                          <div className="flex items-end gap-2">
+                            <span className="text-sm text-slate-600 mb-4">Other:</span>
+                            <input
+                              type="text"
+                              value={formData.otherShiftType}
+                              onChange={(e) => setFormData({ ...formData, otherShiftType: e.target.value })}
+                              className="w-32 px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
+                              placeholder="..."
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1124,7 +1232,6 @@ const EmployeeDashboard = () => {
                         placeholder="Software Engineer"
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Department</label>
                       <input
