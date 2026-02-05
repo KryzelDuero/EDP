@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Building2, UserCheck, Search, Plus, Pencil, Trash2, X, Menu, ChevronLeft, ChevronRight } from 'lucide-react';
+// import zipCodeData from './zipcodes.json'; // Removed in favor of live API
 
 const EmployeeDashboard = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -60,13 +61,40 @@ const EmployeeDashboard = () => {
   const [currentTablePage, setCurrentTablePage] = useState(1);
   const itemsPerPage = 5;
 
+  const [currentStep, setCurrentStep] = useState(1);
+
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    contactNumber: '',
     email: '',
+    birthday: '',
+    age: '',
+    sex: '',
+    status: 'Active',
     position: '',
     department: '',
-    status: 'Active'
+    region: '',
+    province: '',
+    city: '',
+    barangay: '',
+    street: '',
+    zipCode: '',
+    essentialFunctions: '',
+    permanent: '',
+    heardAboutPosition: '',
+    regionCode: '',
+    provinceCode: '',
+    cityCode: ''
   });
+
+  // Address Data States
+  const [regions, setRegions] = useState([]);
+  const [provinces, setProvinces] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [barangays, setBarangays] = useState([]);
+  const [zipCodeMap, setZipCodeMap] = useState({}); // State for API data
 
   const [selectedPosition, setSelectedPosition] = useState('');
 
@@ -114,20 +142,178 @@ const EmployeeDashboard = () => {
     setCurrentTablePage(1);
   }, [searchQuery, selectedPosition]);
 
+  useEffect(() => {
+    if (formData.birthday) {
+      const birthDate = new Date(formData.birthday);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      setFormData(prev => ({ ...prev, age: age.toString() }));
+    } else {
+      setFormData(prev => ({ ...prev, age: '' }));
+    }
+  }, [formData.birthday]);
+
+  useEffect(() => {
+    fetch('https://psgc.gitlab.io/api/regions/')
+      .then(response => response.json())
+      .then(data => setRegions(data.sort((a, b) => a.name.localeCompare(b.name))))
+      .catch(err => console.error('Error fetching regions:', err));
+
+    // Fetch Zip Codes from PSGC Cloud API
+    const fetchZipCodes = async () => {
+      try {
+        const [citiesRes, munisRes] = await Promise.all([
+          fetch('https://psgc.cloud/api/cities'),
+          fetch('https://psgc.cloud/api/municipalities')
+        ]);
+
+        const citiesData = await citiesRes.json();
+        const munisData = await munisRes.json();
+
+        const newMap = {};
+        const processMsg = (list) => {
+          list.forEach(item => {
+            if (item.zip_code) {
+              // Normalize keys for robust lookup
+              const cleanName = item.name.replace(/City of /i, '').replace(/Municipality of /i, '').trim().toLowerCase();
+              newMap[cleanName] = item.zip_code;
+
+              // Also store normalized version (no special chars)
+              const normalized = cleanName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+              if (normalized !== cleanName) {
+                newMap[normalized] = item.zip_code;
+              }
+            }
+          });
+        };
+
+        processMsg(citiesData);
+        processMsg(munisData);
+
+        setZipCodeMap(newMap);
+        console.log('Zip codes fetched from API:', Object.keys(newMap).length);
+      } catch (error) {
+        console.error('Error fetching zip codes from API:', error);
+      }
+    };
+
+    fetchZipCodes();
+  }, []);
+
+  const handleRegionChange = (e) => {
+    const regionCode = e.target.value;
+    const regionName = e.target.options[e.target.selectedIndex].text;
+
+    setFormData(prev => ({
+      ...prev,
+      region: regionName,
+      regionCode: regionCode,
+      province: '',
+      provinceCode: '',
+      city: '',
+      cityCode: '',
+      barangay: ''
+    }));
+
+    fetch(`https://psgc.gitlab.io/api/regions/${regionCode}/provinces/`)
+      .then(response => response.json())
+      .then(data => setProvinces(data.sort((a, b) => a.name.localeCompare(b.name))))
+      .catch(err => console.error('Error fetching provinces:', err));
+  };
+
+  const handleProvinceChange = (e) => {
+    const provinceCode = e.target.value;
+    const provinceName = e.target.options[e.target.selectedIndex].text;
+
+    setFormData(prev => ({
+      ...prev,
+      province: provinceName,
+      provinceCode: provinceCode,
+      city: '',
+      cityCode: '',
+      barangay: ''
+    }));
+
+    fetch(`https://psgc.gitlab.io/api/provinces/${provinceCode}/cities-municipalities/`)
+      .then(response => response.json())
+      .then(data => setCities(data.sort((a, b) => a.name.localeCompare(b.name))))
+      .catch(err => console.error('Error fetching cities:', err));
+  };
+
+  const handleCityChange = (e) => {
+    const cityCode = e.target.value;
+    const cityName = e.target.options[e.target.selectedIndex].text;
+
+    // Zip Code Lookup Logic (Removed per request)
+    // Normalize city name (remove "City of", "Municipality of", etc)
+    // const cleanCityName = cityName.replace(/City of /i, '').replace(/Municipality of /i, '').trim().toLowerCase();
+
+    // Direct lookup from API map
+    // let foundZip = zipCodeMap[cleanCityName] || '';
+
+    // Fallback: normalized lookup (remove diacritics like ñ)
+    // if (!foundZip && cityName) {
+    //     const normalized = cleanCityName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    //     foundZip = zipCodeMap[normalized] || '';
+    // }
+
+    setFormData(prev => ({
+      ...prev,
+      city: cityName,
+      cityCode: cityCode,
+      barangay: '',
+      // zipCode: foundZip // Auto-populate removed
+    }));
+
+    fetch(`https://psgc.gitlab.io/api/cities-municipalities/${cityCode}/barangays/`)
+      .then(response => response.json())
+      .then(data => setBarangays(data.sort((a, b) => a.name.localeCompare(b.name))))
+      .catch(err => console.error('Error fetching barangays:', err));
+  };
+
   const handleAddEmployee = (e) => {
     e.preventDefault();
+    if (currentStep === 1) {
+      setCurrentStep(2);
+      return;
+    }
+
     const newEmployee = {
       id: `EMP${String(employees.length + 1).padStart(3, '0')}`,
+      name: `${formData.firstName} ${formData.lastName}`,
       ...formData
     };
     setEmployees([...employees, newEmployee]);
     setShowModal(false);
+    setCurrentStep(1);
     setFormData({
-      name: '',
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      contactNumber: '',
       email: '',
+      birthday: '',
+      age: '',
+      sex: '',
+      status: 'Active',
       position: '',
       department: '',
-      status: 'Active'
+      region: '',
+      province: '',
+      city: '',
+      barangay: '',
+      street: '',
+      zipCode: '',
+      essentialFunctions: '',
+      permanent: '',
+      heardAboutPosition: '',
+      regionCode: '',
+      provinceCode: '',
+      cityCode: ''
     });
   };
 
@@ -645,9 +831,12 @@ const EmployeeDashboard = () => {
       {/* Add Employee Modal */}
       {showModal && (
         <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="modal-content bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+          <div className="modal-content bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-slate-800">Add New Employee</h2>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800">Add New Employee</h2>
+                <p className="text-slate-500 text-sm mt-1">Step {currentStep} of 2: {currentStep === 1 ? 'Employee Information' : 'Job Details'}</p>
+              </div>
               <button
                 onClick={() => setShowModal(false)}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-all"
@@ -656,81 +845,326 @@ const EmployeeDashboard = () => {
               </button>
             </div>
 
-            <form onSubmit={handleAddEmployee} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                  placeholder="John Doe"
-                />
-              </div>
+            {/* Progress Bar */}
+            <div className="w-full h-2 bg-slate-100 rounded-full mb-8 overflow-hidden">
+              <div
+                className="h-full bg-indigo-600 transition-all duration-500 ease-in-out"
+                style={{ width: `${(currentStep / 2) * 100}%` }}
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                  placeholder="john.doe@company.com"
-                />
-              </div>
+            <form onSubmit={handleAddEmployee} className="space-y-6">
+              {currentStep === 1 ? (
+                <div className="space-y-6 card-enter">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">First Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                        placeholder="John"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Middle Name</label>
+                      <input
+                        type="text"
+                        value={formData.middleName}
+                        onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                        placeholder="D."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Last Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Position</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.position}
-                  onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                  placeholder="Software Engineer"
-                />
-              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Contact Number</label>
+                      <input
+                        type="tel"
+                        required
+                        value={formData.contactNumber}
+                        onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                        placeholder="09123456789"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
+                      <input
+                        type="email"
+                        required
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                        placeholder="john.doe@company.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Birthday</label>
+                      <input
+                        type="date"
+                        required
+                        value={formData.birthday}
+                        onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Department</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                  placeholder="Engineering"
-                />
-              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Age</label>
+                      <input
+                        type="number"
+                        readOnly
+                        value={formData.age}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-slate-500 focus:outline-none"
+                        placeholder="Age"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
+                      <select
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Sex</label>
+                      <select
+                        value={formData.sex}
+                        onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                      >
+                        <option value="">Select Sex</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
+                  <div className="border-t border-slate-100 pt-4">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4">Address Information</h3>
 
-              <div className="flex gap-3 pt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Region</label>
+                        <select
+                          required
+                          value={formData.regionCode}
+                          onChange={handleRegionChange}
+                          className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                        >
+                          <option value="">Select Region</option>
+                          {regions.map(region => (
+                            <option key={region.code} value={region.code}>{region.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Province</label>
+                        <select
+                          required
+                          value={formData.provinceCode}
+                          onChange={handleProvinceChange}
+                          disabled={!formData.regionCode}
+                          className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none disabled:bg-slate-50"
+                        >
+                          <option value="">Select Province</option>
+                          {provinces.map(province => (
+                            <option key={province.code} value={province.code}>{province.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">City/Municipality</label>
+                        <select
+                          required
+                          value={formData.cityCode}
+                          onChange={handleCityChange}
+                          disabled={!formData.provinceCode}
+                          className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none disabled:bg-slate-50"
+                        >
+                          <option value="">Select City/Municipality</option>
+                          {cities.map(city => (
+                            <option key={city.code} value={city.code}>{city.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Barangay</label>
+                        <select
+                          required
+                          value={formData.barangay}
+                          onChange={(e) => setFormData({ ...formData, barangay: e.target.value })}
+                          disabled={!formData.cityCode}
+                          className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none disabled:bg-slate-50"
+                        >
+                          <option value="">Select Barangay</option>
+                          {barangays.map(barangay => (
+                            <option key={barangay.code} value={barangay.name}>{barangay.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Street/Building Name</label>
+                        <input
+                          type="text"
+                          value={formData.street}
+                          onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                          className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                          placeholder="Unit 123, Example Bldg., 123 Main St."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Zip Code</label>
+                        <input
+                          type="text"
+                          value={formData.zipCode}
+                          onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+                          className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-400 focus:outline-none"
+                          placeholder="Zip Code"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 mb-4">
+                      <div className="flex items-center space-x-4">
+                        <label className="text-sm font-semibold text-slate-700">Can you perform the position's essential functions with or without accommodations?</label>
+                        <div className="flex items-center space-x-6">
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.essentialFunctions === 'Yes'}
+                              onChange={() => setFormData({ ...formData, essentialFunctions: 'Yes' })}
+                              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="text-slate-700">Yes</span>
+                          </label>
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.essentialFunctions === 'No'}
+                              onChange={() => setFormData({ ...formData, essentialFunctions: 'No' })}
+                              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="text-slate-700">No</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-4">
+                        <label className="text-sm font-semibold text-slate-700">I am seeking a permanent position:</label>
+                        <div className="flex items-center space-x-6">
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.permanent === 'Yes'}
+                              onChange={() => setFormData({ ...formData, permanent: 'Yes' })}
+                              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="text-slate-700">Yes</span>
+                          </label>
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.permanent === 'No'}
+                              onChange={() => setFormData({ ...formData, permanent: 'No' })}
+                              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="text-slate-700">No</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">How did you hear about the position?</label>
+                      <input
+                        type="text"
+                        value={formData.heardAboutPosition}
+                        onChange={(e) => setFormData({ ...formData, heardAboutPosition: e.target.value })}
+                        className="w-full px-2 py-2 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
+                        placeholder="Min. of 200 characters"
+                      />
+                    </div>
+
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6 card-enter">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Position</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.position}
+                        onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                        placeholder="Software Engineer"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Department</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.department}
+                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                        placeholder="Engineering"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4 border-t border-slate-100 mt-6">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all"
+                  className="px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 btn-primary px-6 py-3 text-white rounded-xl font-semibold shadow-lg"
-                >
-                  Save
-                </button>
+                <div className="flex-1 flex justify-end gap-3">
+                  {currentStep > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(currentStep - 1)}
+                      className="px-6 py-3 border-2 border-indigo-600 text-indigo-600 rounded-xl font-semibold hover:bg-indigo-50 transition-all"
+                    >
+                      Previous
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="btn-primary px-8 py-3 text-white rounded-xl font-semibold shadow-lg"
+                  >
+                    {currentStep === 2 ? 'Save Employee' : 'Next Step'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
