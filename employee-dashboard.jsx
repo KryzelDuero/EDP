@@ -91,8 +91,25 @@ const EmployeeDashboard = () => {
     canWorkOvertime: '',
     hasDriversLicense: '',
     licenseIssuingState: '',
-    shiftTypes: [],
-    otherShiftType: ''
+    shifts: [],
+    shiftOtherValue: '',
+    shiftTypeLabel: '',
+    employmentHistory: [
+      { nameAddress1: '', nameAddress2: '', nameAddress3: '', pay: '', per: '', posSkills1: '', posSkills2: '', posSkills3: '', supervisor: '', contactNo: '', startDate: '', endDate: '', reasonLeaving1: '', reasonLeaving2: '', reasonLeaving3: '' },
+      { nameAddress1: '', nameAddress2: '', nameAddress3: '', pay: '', per: '', posSkills1: '', posSkills2: '', posSkills3: '', supervisor: '', contactNo: '', startDate: '', endDate: '', reasonLeaving1: '', reasonLeaving2: '', reasonLeaving3: '' },
+      { nameAddress1: '', nameAddress2: '', nameAddress3: '', pay: '', per: '', posSkills1: '', posSkills2: '', posSkills3: '', supervisor: '', contactNo: '', startDate: '', endDate: '', reasonLeaving1: '', reasonLeaving2: '', reasonLeaving3: '' }
+    ],
+    education: {
+      elemSchool: '', elemYear: '',
+      highSchool: '', highYear: '',
+      collegeSchool: '', collegeYear: '',
+      vocSchool: '', vocYear: ''
+    },
+    certificates: [
+      { title: '', issuedBy: '', date: '' },
+      { title: '', issuedBy: '', date: '' },
+      { title: '', issuedBy: '', date: '' }
+    ]
   });
 
   // Address Data States
@@ -263,8 +280,8 @@ const EmployeeDashboard = () => {
 
   const handleAddEmployee = (e) => {
     e.preventDefault();
-    if (currentStep === 1) {
-      setCurrentStep(2);
+    if (currentStep < 3) {
+      setCurrentStep(currentStep + 1);
       return;
     }
 
@@ -305,8 +322,60 @@ const EmployeeDashboard = () => {
       canWorkOvertime: '',
       hasDriversLicense: '',
       licenseIssuingState: '',
-      shiftTypes: [],
-      otherShiftType: ''
+      shifts: [],
+      shiftOtherValue: '',
+      shiftTypeLabel: '',
+      employmentHistory: [
+        { nameAddress1: '', nameAddress2: '', nameAddress3: '', pay: '', per: '', posSkills1: '', posSkills2: '', posSkills3: '', supervisor: '', contactNo: '', startDate: '', endDate: '', reasonLeaving1: '', reasonLeaving2: '', reasonLeaving3: '' },
+        { nameAddress1: '', nameAddress2: '', nameAddress3: '', pay: '', per: '', posSkills1: '', posSkills2: '', posSkills3: '', supervisor: '', contactNo: '', startDate: '', endDate: '', reasonLeaving1: '', reasonLeaving2: '', reasonLeaving3: '' },
+        { nameAddress1: '', nameAddress2: '', nameAddress3: '', pay: '', per: '', posSkills1: '', posSkills2: '', posSkills3: '', supervisor: '', contactNo: '', startDate: '', endDate: '', reasonLeaving1: '', reasonLeaving2: '', reasonLeaving3: '' }
+      ],
+      education: {
+        elemSchool: '', elemYear: '',
+        highSchool: '', highYear: '',
+        collegeSchool: '', collegeYear: '',
+        vocSchool: '', vocYear: ''
+      },
+      certificates: [
+        { title: '', issuedBy: '', date: '' },
+        { title: '', issuedBy: '', date: '' },
+        { title: '', issuedBy: '', date: '' }
+      ]
+    });
+  };
+
+  const handleEmploymentChange = (index, col, value) => {
+    setFormData(prev => {
+      const newHistory = [...prev.employmentHistory];
+      newHistory[index] = { ...newHistory[index], [col]: value };
+      return { ...prev, employmentHistory: newHistory };
+    });
+  };
+
+  const handleEducationChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      education: {
+        ...prev.education,
+        [field]: value
+      }
+    }));
+  };
+
+  const handleCertificateChange = (index, field, value) => {
+    setFormData(prev => {
+      const newCertificates = [...prev.certificates];
+      newCertificates[index] = { ...newCertificates[index], [field]: value };
+      return { ...prev, certificates: newCertificates };
+    });
+  };
+
+  const handleShiftChange = (shift) => {
+    setFormData(prev => {
+      const newShifts = prev.shifts.includes(shift)
+        ? prev.shifts.filter(s => s !== shift)
+        : [...prev.shifts, shift];
+      return { ...prev, shifts: newShifts };
     });
   };
 
@@ -326,7 +395,7 @@ const EmployeeDashboard = () => {
         }
 
         body {
-          font-family: 'Syne', sans-serif;
+          font-family: 'Calibre';
         }
 
         .stat-card {
@@ -820,7 +889,13 @@ const EmployeeDashboard = () => {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-slate-800">Add New Employee</h2>
-                <p className="text-slate-500 text-sm mt-1">Step {currentStep} of 2: {currentStep === 1 ? 'Employee Information' : 'Job Details'}</p>
+                <p className="text-slate-500 text-sm mt-1">
+                  Step {currentStep} of 3: {
+                    currentStep === 1 ? 'Employee Information' :
+                      currentStep === 2 ? 'Employment History' :
+                        'Education & Certificates'
+                  }
+                </p>
               </div>
               <button
                 onClick={() => setShowModal(false)}
@@ -833,7 +908,7 @@ const EmployeeDashboard = () => {
             <div className="w-full h-2 bg-slate-100 rounded-full mb-8 overflow-hidden">
               <div
                 className="h-full bg-indigo-600 transition-all duration-500 ease-in-out"
-                style={{ width: `${(currentStep / 2) * 100}%` }}
+                style={{ width: `${(currentStep / 3) * 100}%` }}
               />
             </div>
 
@@ -882,7 +957,10 @@ const EmployeeDashboard = () => {
                         type="tel"
                         required
                         value={formData.contactNumber}
-                        onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                        onChange={(e) => {
+                          const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11);
+                          setFormData({ ...formData, contactNumber: numericValue });
+                        }}
                         className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
                         placeholder="09123456789"
                       />
@@ -1023,7 +1101,10 @@ const EmployeeDashboard = () => {
                         <input
                           type="text"
                           value={formData.zipCode}
-                          onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+                          onChange={(e) => {
+                            const numericValue = e.target.value.replace(/\D/g, '').slice(0, 4);
+                            setFormData({ ...formData, zipCode: numericValue });
+                          }}
                           className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-400 focus:outline-none"
                           placeholder="Zip Code"
                         />
@@ -1168,8 +1249,9 @@ const EmployeeDashboard = () => {
                         </div>
 
                         <div className={`space-y-4 transition-all duration-300 ${formData.hasDriversLicense === 'Yes' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden pointer-events-none'}`}>
-                          <div className="flex items-end gap-4">
-                            <label className="text-sm font-semibold text-slate-700 mb-4 whitespace-nowrap">If so, fill out the following: Issuing state:</label>
+                          <p className="text-sm font-semibold text-slate-700">If so, fill out the following:</p>
+                          <div className="flex items-end gap-4 ml-4">
+                            <label className="text-sm font-semibold text-slate-700 mb-4 whitespace-nowrap">Issuing state:</label>
                             <input
                               type="text"
                               value={formData.licenseIssuingState}
@@ -1182,66 +1264,322 @@ const EmployeeDashboard = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-4 pt-4 border-t border-slate-50">
-                        <label className="text-sm font-semibold text-slate-700">Type:</label>
-                        <div className="flex flex-wrap gap-x-6 gap-y-4">
-                          {['Any', 'Day', 'Night', 'Swing', 'Rotating', 'Split', 'Graveyard'].map((type) => {
-                            return (
-                              <label key={type} className="flex items-center space-x-2 cursor-pointer group">
-                                <input
-                                  type="checkbox"
-                                  checked={formData.shiftTypes.includes(type)}
-                                  onChange={() => {
-                                    const newTypes = formData.shiftTypes.includes(type)
-                                      ? formData.shiftTypes.filter(t => t !== type)
-                                      : [...formData.shiftTypes, type];
-                                    setFormData({ ...formData, shiftTypes: newTypes });
-                                  }}
-                                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                />
-                                <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">{type}</span>
-                              </label>
-                            );
-                          })}
-                          <div className="flex items-end gap-2">
-                            <span className="text-sm text-slate-600 mb-4">Other:</span>
+                      <div className="space-y-4 pt-4 border-t border-slate-100">
+                        <p className="text-sm font-bold text-slate-800 tracking-wide">s: (check all that apply)</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {['Any', 'Day', 'Night', 'Swing', 'Rotating', 'Split', 'Graveyard'].map((shift) => (
+                            <label key={shift} className="flex items-center space-x-2 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={formData.shifts.includes(shift)}
+                                onChange={() => handleShiftChange(shift)}
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                              />
+                              <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">{shift}</span>
+                            </label>
+                          ))}
+                          <div className="flex items-center space-x-2 group">
+                            <label className="flex items-center space-x-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={formData.shifts.includes('Other')}
+                                onChange={() => handleShiftChange('Other')}
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                              />
+                              <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Other:</span>
+                            </label>
                             <input
                               type="text"
-                              value={formData.otherShiftType}
-                              onChange={(e) => setFormData({ ...formData, otherShiftType: e.target.value })}
-                              className="w-32 px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
-                              placeholder="..."
+                              value={formData.shiftOtherValue}
+                              onChange={(e) => setFormData({ ...formData, shiftOtherValue: e.target.value })}
+                              className="w-full px-2 py-1 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm"
+                              placeholder="Specify..."
+                              disabled={!formData.shifts.includes('Other')}
                             />
                           </div>
                         </div>
+                        <div className="flex items-end gap-2 max-w-md">
+                          <label className="text-sm font-semibold text-slate-700 whitespace-nowrap mb-1">Type: </label>
+                          <input
+                            type="text"
+                            value={formData.shiftTypeLabel}
+                            onChange={(e) => setFormData({ ...formData, shiftTypeLabel: e.target.value })}
+                            className="flex-1 px-2 py-1 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm"
+                            placeholder="Shift details"
+                          />
+                        </div>
                       </div>
+
                     </div>
                   </div>
                 </div>
-              ) : (
+              ) : currentStep === 2 ? (
                 <div className="space-y-6 card-enter">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Position</label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.position}
-                        onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                        placeholder="Software Engineer"
-                      />
+                  <p className="text-sm text-slate-500 italic">List most recent employment first.</p>
+
+                  <div className="overflow-hidden border-2 border-slate-200 rounded-xl">
+                    <table className="w-full border-collapse">
+                      <tbody>
+                        {[0, 1, 2].map((rowIndex) => (
+                          <tr key={rowIndex} className={rowIndex !== 2 ? "border-b-2 border-slate-200" : ""}>
+                            <td className="border-r-2 border-slate-200 p-4 align-top">
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-xs font-semibold text-slate-700 mb-1">Employee name and address: </label>
+                                  <div className="space-y-2">
+                                    <input
+                                      type="text"
+                                      value={formData.employmentHistory[rowIndex].nameAddress1}
+                                      onChange={(e) => handleEmploymentChange(rowIndex, 'nameAddress1', e.target.value)}
+                                      className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                      placeholder="..."
+                                    />
+                                    <input
+                                      type="text"
+                                      value={formData.employmentHistory[rowIndex].nameAddress2}
+                                      onChange={(e) => handleEmploymentChange(rowIndex, 'nameAddress2', e.target.value)}
+                                      className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                      placeholder="..."
+                                    />
+                                    <input
+                                      type="text"
+                                      value={formData.employmentHistory[rowIndex].nameAddress3}
+                                      onChange={(e) => handleEmploymentChange(rowIndex, 'nameAddress3', e.target.value)}
+                                      className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                      placeholder="..."
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex items-end gap-2">
+                                  <label className="text-xs font-semibold text-slate-700 whitespace-nowrap mb-1">Pay: ₱</label>
+                                  <input
+                                    type="text"
+                                    value={formData.employmentHistory[rowIndex].pay}
+                                    onChange={(e) => {
+                                      const rawValue = e.target.value.replace(/\D/g, '');
+                                      const formattedValue = rawValue ? new Intl.NumberFormat().format(rawValue) : '';
+                                      handleEmploymentChange(rowIndex, 'pay', formattedValue);
+                                    }}
+                                    className="flex-1 border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                    placeholder="..."
+                                  />
+                                </div>
+                                <div className="flex items-end gap-2">
+                                  <label className="text-xs font-semibold text-slate-700 whitespace-nowrap mb-1">Per: </label>
+                                  <input
+                                    type="text"
+                                    value={formData.employmentHistory[rowIndex].per}
+                                    onChange={(e) => {
+                                      const rawValue = e.target.value.replace(/\D/g, '');
+                                      const formattedValue = rawValue ? new Intl.NumberFormat().format(rawValue) : '';
+                                      handleEmploymentChange(rowIndex, 'per', formattedValue);
+                                    }}
+                                    className="flex-1 border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                    placeholder="..."
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="border-r-2 border-slate-200 p-4 align-top">
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-xs font-semibold text-slate-700 mb-1">Position title/duties, skills: </label>
+                                  <div className="space-y-2">
+                                    <input
+                                      type="text"
+                                      value={formData.employmentHistory[rowIndex].posSkills1}
+                                      onChange={(e) => handleEmploymentChange(rowIndex, 'posSkills1', e.target.value)}
+                                      className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                      placeholder="..."
+                                    />
+                                    <input
+                                      type="text"
+                                      value={formData.employmentHistory[rowIndex].posSkills2}
+                                      onChange={(e) => handleEmploymentChange(rowIndex, 'posSkills2', e.target.value)}
+                                      className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                      placeholder="..."
+                                    />
+                                    <input
+                                      type="text"
+                                      value={formData.employmentHistory[rowIndex].posSkills3}
+                                      onChange={(e) => handleEmploymentChange(rowIndex, 'posSkills3', e.target.value)}
+                                      className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                      placeholder="..."
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex items-end gap-2">
+                                  <label className="text-xs font-semibold text-slate-700 whitespace-nowrap mb-1">Supervisor: </label>
+                                  <input
+                                    type="text"
+                                    value={formData.employmentHistory[rowIndex].supervisor}
+                                    onChange={(e) => handleEmploymentChange(rowIndex, 'supervisor', e.target.value)}
+                                    className="flex-1 border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                    placeholder="..."
+                                  />
+                                </div>
+                                <div className="flex items-end gap-2">
+                                  <label className="text-xs font-semibold text-slate-700 whitespace-nowrap mb-1">Contact no.: </label>
+                                  <input
+                                    type="text"
+                                    value={formData.employmentHistory[rowIndex].contactNo}
+                                    onChange={(e) => {
+                                      const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11);
+                                      handleEmploymentChange(rowIndex, 'contactNo', numericValue);
+                                    }}
+                                    className="flex-1 border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                    placeholder="..."
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4 align-top">
+                              <div className="space-y-3">
+                                <div className="flex items-end gap-2">
+                                  <label className="text-xs font-semibold text-slate-700 whitespace-nowrap mb-1">Start date: </label>
+                                  <input
+                                    type="date"
+                                    value={formData.employmentHistory[rowIndex].startDate}
+                                    onChange={(e) => handleEmploymentChange(rowIndex, 'startDate', e.target.value)}
+                                    className="flex-1 border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1 uppercase"
+                                  />
+                                </div>
+                                <div className="flex items-end gap-2">
+                                  <label className="text-xs font-semibold text-slate-700 whitespace-nowrap mb-1">End date: </label>
+                                  <input
+                                    type="date"
+                                    value={formData.employmentHistory[rowIndex].endDate}
+                                    onChange={(e) => handleEmploymentChange(rowIndex, 'endDate', e.target.value)}
+                                    className="flex-1 border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1 uppercase"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="block text-xs font-semibold text-slate-700">Reason for leaving: </label>
+                                  <div className="space-y-2">
+                                    <input
+                                      type="text"
+                                      value={formData.employmentHistory[rowIndex].reasonLeaving1}
+                                      onChange={(e) => handleEmploymentChange(rowIndex, 'reasonLeaving1', e.target.value)}
+                                      className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                      placeholder="..."
+                                    />
+                                    <input
+                                      type="text"
+                                      value={formData.employmentHistory[rowIndex].reasonLeaving2}
+                                      onChange={(e) => handleEmploymentChange(rowIndex, 'reasonLeaving2', e.target.value)}
+                                      className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                      placeholder="..."
+                                    />
+                                    <input
+                                      type="text"
+                                      value={formData.employmentHistory[rowIndex].reasonLeaving3}
+                                      onChange={(e) => handleEmploymentChange(rowIndex, 'reasonLeaving3', e.target.value)}
+                                      className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                                      placeholder="..."
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-8 card-enter">
+                  <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
+                    <h3 className="text-base font-bold text-slate-800 mb-6 flex items-center gap-2">
+                      <span className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm italic">I</span>
+                      EDUCATION
+                    </h3>
+
+                    <div className="space-y-6">
+                      {[
+                        { id: 'elem', label: 'ELEMENTARY' },
+                        { id: 'high', label: 'HIGH SCHOOL' },
+                        { id: 'college', label: 'COLLEGE' },
+                        { id: 'voc', label: 'VOCATIONAL' }
+                      ].map((level) => (
+                        <div key={level.id} className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+                          <div className="md:col-span-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{level.label}</label>
+                          </div>
+                          <div className="md:col-span-7">
+                            <input
+                              type="text"
+                              value={formData.education[`${level.id}School`]}
+                              onChange={(e) => handleEducationChange(`${level.id}School`, e.target.value)}
+                              className="w-full border-b-2 border-slate-200 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                              placeholder="School Name"
+                            />
+                          </div>
+                          <div className="md:col-span-3">
+                            <input
+                              type="text"
+                              value={formData.education[`${level.id}Year`]}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                handleEducationChange(`${level.id}Year`, val);
+                              }}
+                              className="w-full border-b-2 border-slate-200 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
+                              placeholder="Year Graduated"
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Department</label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.department}
-                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                        placeholder="Engineering"
-                      />
+                  </div>
+
+                  <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
+                    <h3 className="text-base font-bold text-slate-800 mb-6 flex items-center gap-2">
+                      <span className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm italic">II</span>
+                      CERTIFICATES / VOCATIONAL COURSE
+                    </h3>
+
+                    <div className="overflow-hidden border border-slate-200 rounded-xl">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">Title of Course</th>
+                            <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">Issued by</th>
+                            <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[0, 1, 2].map((idx) => (
+                            <tr key={idx} className={idx !== 2 ? "border-b border-slate-200" : ""}>
+                              <td className="p-2 border-r border-slate-200">
+                                <input
+                                  type="text"
+                                  value={formData.certificates[idx].title}
+                                  onChange={(e) => handleCertificateChange(idx, 'title', e.target.value)}
+                                  className="w-full bg-transparent focus:outline-none text-sm px-2"
+                                  placeholder="..."
+                                />
+                              </td>
+                              <td className="p-2 border-r border-slate-200">
+                                <input
+                                  type="text"
+                                  value={formData.certificates[idx].issuedBy}
+                                  onChange={(e) => handleCertificateChange(idx, 'issuedBy', e.target.value)}
+                                  className="w-full bg-transparent focus:outline-none text-sm px-2"
+                                  placeholder="..."
+                                />
+                              </td>
+                              <td className="p-2">
+                                <input
+                                  type="date"
+                                  value={formData.certificates[idx].date}
+                                  onChange={(e) => handleCertificateChange(idx, 'date', e.target.value)}
+                                  className="w-full bg-transparent focus:outline-none text-sm px-2 uppercase"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
@@ -1269,7 +1607,7 @@ const EmployeeDashboard = () => {
                     type="submit"
                     className="btn-primary px-8 py-3 text-white rounded-xl font-semibold shadow-lg"
                   >
-                    {currentStep === 2 ? 'Save Employee' : 'Next Step'}
+                    {currentStep === 3 ? 'Save Employee' : 'Next Step'}
                   </button>
                 </div>
               </div>
