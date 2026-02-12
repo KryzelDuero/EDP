@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Building2, UserCheck, Search, Plus, Pencil, Trash2, X, Menu, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Users, Building2, UserCheck, Search, Plus, Pencil, Trash2, X, Menu, ChevronLeft, ChevronRight, Eye, Maximize2, Minimize2 } from 'lucide-react';
+import { supabase } from './supabaseClient';
 
 const SignaturePad = ({ value, onChange, disabled = false }) => {
   const canvasRef = React.useRef(null);
@@ -94,7 +95,7 @@ const SignaturePad = ({ value, onChange, disabled = false }) => {
         onTouchStart={startDrawing}
         onTouchMove={draw}
         onTouchEnd={endDrawing}
-        className={`w-full h-32 touch-none ${disabled ? 'cursor-not-allowed' : 'cursor-crosshair'}`}
+        className={`w-full h-60 touch-none ${disabled ? 'cursor-not-allowed' : 'cursor-crosshair'}`}
       />
       {!disabled && (
         <button
@@ -110,6 +111,7 @@ const SignaturePad = ({ value, onChange, disabled = false }) => {
 };
 
 const INITIAL_FORM_DATA = {
+  employeeIdNumber: '',
   firstName: '',
   middleName: '',
   lastName: '',
@@ -169,7 +171,71 @@ const INITIAL_FORM_DATA = {
     contactNumber: ''
   },
   applicantSignature: '',
-  dateSigned: ''
+  dateSigned: '',
+  positionApplied: '',
+  applicationDate: '',
+
+  // Hiring & Interview Info
+  interviewedBy: '',
+  interviewDate: '',
+  remarks1: '',
+  remarks2: '',
+  neatness: '',
+  ability: '',
+  hired: '',
+  hiredPosition: '',
+  hiredDept: '',
+  salaryWage: '',
+  reportingDate: '',
+
+  // Requirements & Government IDs
+  sssNo: '',
+  hasBirthCertificate: false,
+  philhealthNo: '',
+  hasMarriageContract: false,
+  pagibigNo: '',
+  hasNciiCertificate: false,
+  tinNo: '',
+  hasNbi: false,
+  nbiExpiryDate: '',
+  hasEmploymentContract: false,
+  employmentContractExpiryDate: '',
+  hasDrugTest: false,
+  drugTestExpiryDate: '',
+  hasHealthCard: false,
+  healthCardExpiryDate: '',
+  healthCardStatus: '',
+  hasBarangayClearance: false,
+  barangayClearanceExpiryDate: '',
+  hasQuitclaim: false,
+
+  // Uniform & PPE
+  hasLongPants: false,
+  longPantsQty: '',
+  hasPvcId: false,
+  hasSling: false,
+  hasLongSleeves: false,
+  longSleevesBrownQty: '',
+  longSleevesWhiteQty: '',
+  longSleevesOthers: '',
+  uniformRemarks: '',
+  ppeSafetyShoes: false,
+  ppeGripGloves: false,
+  ppeCottonGloves: false,
+  ppeHardhat: false,
+  ppeFaceshield: false,
+  ppeKn95Mask: false,
+  ppeSpectacles: false,
+  ppeEarplug: false,
+  ppeWeldingMask: false,
+  ppeWeldingGloves: false,
+  ppeWeldingApron: false,
+  ppeFullBodyHarness: false,
+
+  // Approvals
+  approvedHrManager: '',
+  approvedGeneralManager: '',
+  approvedAsstManager: ''
 };
 
 const EmployeeDashboard = () => {
@@ -177,56 +243,7 @@ const EmployeeDashboard = () => {
   const [showModal, setShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [employees, setEmployees] = useState([
-    {
-      id: 'EMP001',
-      name: 'Sarah Johnson',
-      position: 'Senior Software Engineer',
-      department: 'Engineering',
-      email: 'sarah.johnson@company.com',
-      status: 'Active'
-    },
-    {
-      id: 'EMP002',
-      name: 'Michael Chen',
-      position: 'Product Manager',
-      department: 'Product',
-      email: 'michael.chen@company.com',
-      status: 'Active'
-    },
-    {
-      id: 'EMP003',
-      name: 'Emily Rodriguez',
-      position: 'UX Designer',
-      department: 'Design',
-      email: 'emily.rodriguez@company.com',
-      status: 'Active'
-    },
-    {
-      id: 'EMP004',
-      name: 'David Kim',
-      position: 'DevOps Engineer',
-      department: 'Engineering',
-      email: 'david.kim@company.com',
-      status: 'Active'
-    },
-    {
-      id: 'EMP005',
-      name: 'Jessica Martinez',
-      position: 'Marketing Manager',
-      department: 'Marketing',
-      email: 'jessica.martinez@company.com',
-      status: 'Active'
-    },
-    {
-      id: 'EMP006',
-      name: 'James Anderson',
-      position: 'Sales Director',
-      department: 'Sales',
-      email: 'james.anderson@company.com',
-      status: 'Inactive'
-    }
-  ]);
+  const [employees, setEmployees] = useState([]);
 
   const [currentTablePage, setCurrentTablePage] = useState(1);
   const itemsPerPage = 5;
@@ -237,6 +254,7 @@ const EmployeeDashboard = () => {
   const [editEmployeeId, setEditEmployeeId] = useState(null);
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
+  const [originalEmployeeData, setOriginalEmployeeData] = useState(null);
 
   // Address Data States
   const [regions, setRegions] = useState([]);
@@ -246,37 +264,23 @@ const EmployeeDashboard = () => {
   const [zipCodeMap, setZipCodeMap] = useState({});
 
   const [selectedPosition, setSelectedPosition] = useState('');
+  const [showAllColumns, setShowAllColumns] = useState(false);
 
-  const [recentActivity] = useState([
-    {
-      type: 'new',
-      title: 'New employee added',
-      description: 'Christopher Lee joined Engineering department',
-      time: '2 hours ago'
-    },
-    {
-      type: 'update',
-      title: 'Employee updated',
-      description: "Sarah Johnson's position was updated",
-      time: '5 hours ago'
-    },
-    {
-      type: 'status',
-      title: 'Status changed',
-      description: 'James Anderson marked as inactive',
-      time: '1 day ago'
-    }
-  ]);
+  // Delete Confirmation States
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [recentActivity, setRecentActivity] = useState([]);
 
   const totalEmployees = employees.length;
   const activeEmployees = employees.filter(emp => emp.status === 'Active').length;
-  const departments = [...new Set(employees.map(emp => emp.department))].length;
-  const uniquePositions = [...new Set(employees.map(emp => emp.position))];
+  const departments = [...new Set(employees.map(emp => emp.hired_dept || emp.department))].length;
+  const uniquePositions = [...new Set(employees.map(emp => emp.hired_position || emp.position))].filter(Boolean);
 
   const filteredEmployees = employees.filter(emp => {
     const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPosition = selectedPosition ? emp.position === selectedPosition : true;
+      (emp.employee_id || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const empPosition = emp.hired_position || emp.position;
+    const matchesPosition = selectedPosition ? empPosition === selectedPosition : true;
     return matchesSearch && matchesPosition;
   });
 
@@ -290,6 +294,125 @@ const EmployeeDashboard = () => {
   useEffect(() => {
     setCurrentTablePage(1);
   }, [searchQuery, selectedPosition]);
+
+  // Fetch employees and activity logs from Supabase on mount
+  useEffect(() => {
+    fetchEmployees();
+    fetchActivityLogs();
+
+    // Subscribe to new activity logs
+    const activitySubscription = supabase
+      .channel('activity_logs_realtime')
+      .on('postgres_changes', { event: 'INSERT', table: 'activity_logs' }, (payload) => {
+        setRecentActivity(prev => [payload.new, ...prev].slice(0, 5));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(activitySubscription);
+    };
+  }, []);
+
+  const fetchActivityLogs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      if (data) setRecentActivity(data);
+    } catch (error) {
+      console.error('Error fetching activity logs:', error.message);
+    }
+  };
+
+  const logActivity = async (type, title, description) => {
+    try {
+      await supabase
+        .from('activity_logs')
+        .insert([{ type, title, description }]);
+    } catch (error) {
+      console.error('Error logging activity:', error.message);
+    }
+  };
+
+  const detectSignificantChanges = (oldData, newData) => {
+    const changes = [];
+
+    if (oldData.hired_position !== newData.hired_position) {
+      changes.push(`Position: ${oldData.hired_position || 'None'} → ${newData.hired_position || 'None'}`);
+    }
+    if (oldData.hired_dept !== newData.hired_dept) {
+      changes.push(`Department: ${oldData.hired_dept || 'None'} → ${newData.hired_dept || 'None'}`);
+    }
+    if (oldData.status !== newData.status) {
+      changes.push(`Status: ${oldData.status || 'None'} → ${newData.status || 'None'}`);
+    }
+    if (oldData.contact_number !== newData.contact_number) {
+      changes.push(`Contact: ${oldData.contact_number || 'None'} → ${newData.contact_number || 'None'}`);
+    }
+    if (oldData.salary_wage !== newData.salary_wage) {
+      changes.push(`Salary updated`);
+    }
+
+    return changes;
+  };
+
+  const formatRelativeTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    if (diffInSeconds < 60) return 'just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const fetchEmployees = async () => {
+    // Check if Supabase is configured
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('your-project-url') || supabaseKey.includes('your-anon-key')) {
+      console.log('Supabase not configured. Using local mode.');
+      return; // Use local state instead
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .order('last_name', { ascending: true })
+        .order('first_name', { ascending: true });
+
+      if (error) throw error;
+
+      if (data) {
+        const formattedEmployees = data.map(emp => {
+          // Extract the 4-digit number from employee_id (e.g., "EDP NO.1001" -> "1001")
+          const employeeIdNumber = emp.employee_id ? emp.employee_id.replace('EDP NO.', '').replace('EDP.', '') : '';
+
+          // Format name: Last Name, First Name, Middle Name
+          const middleNamePart = emp.middle_name ? `, ${emp.middle_name}` : '';
+          const name = `${emp.last_name}, ${emp.first_name}${middleNamePart}`;
+
+          return {
+            ...emp,
+            name,
+            employeeIdNumber
+          };
+        });
+        setEmployees(formattedEmployees);
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error.message);
+    }
+  };
 
   useEffect(() => {
     if (formData.birthday) {
@@ -404,34 +527,272 @@ const EmployeeDashboard = () => {
       .catch(err => console.error('Error fetching barangays:', err));
   };
 
-  const handleAddEmployee = (e) => {
+  const handleAddEmployee = async (e) => {
     e.preventDefault();
     if (currentStep < 6) {
       setCurrentStep(currentStep + 1);
       return;
     }
 
-    if (isEditing) {
-      setEmployees(employees.map(emp =>
-        emp.id === editEmployeeId
-          ? { ...emp, ...formData, name: `${formData.firstName} ${formData.lastName}` }
-          : emp
-      ));
-    } else {
-      const newEmployee = {
-        id: `EMP${String(employees.length + 1).padStart(3, '0')}`,
-        name: `${formData.firstName} ${formData.lastName}`,
-        ...formData
-      };
-      setEmployees([...employees, newEmployee]);
+    // Check if Supabase is configured
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const useLocalMode = !supabaseUrl || !supabaseKey || supabaseUrl.includes('your-project-url') || supabaseKey.includes('your-anon-key');
+
+    if (useLocalMode) {
+      // Local mode - use state only
+      if (isEditing) {
+        setEmployees(employees.map(emp =>
+          emp.id === editEmployeeId
+            ? { ...emp, ...formData, name: `${formData.firstName} ${formData.lastName}` }
+            : emp
+        ));
+      } else {
+        const newEmployee = {
+          id: `EMP${String(employees.length + 1).padStart(3, '0')}`,
+          name: `${formData.firstName} ${formData.lastName}`,
+          ...formData
+        };
+        setEmployees([...employees, newEmployee]);
+      }
+
+      setShowModal(false);
+      setCurrentStep(1);
+      setIsEditing(false);
+      setIsViewOnly(false);
+      setEditEmployeeId(null);
+      setFormData(INITIAL_FORM_DATA);
+      return;
     }
 
-    setShowModal(false);
-    setCurrentStep(1);
-    setIsEditing(false);
-    setIsViewOnly(false);
-    setEditEmployeeId(null);
-    setFormData(INITIAL_FORM_DATA);
+    try {
+      // Prepare main employee data
+      const employeeData = {
+        employee_id: formData.employeeIdNumber ? `EDP NO.${formData.employeeIdNumber}` : null,
+        first_name: formData.firstName || '',
+        middle_name: formData.middleName || '',
+        last_name: formData.lastName || '',
+        contact_number: formData.contactNumber || '',
+        email: formData.email || '',
+        birthday: formData.birthday || null,
+        age: formData.age ? parseInt(formData.age) : null,
+        sex: formData.sex || '',
+        status: formData.status || 'Active',
+        position: formData.position || '',
+        department: formData.department || '',
+        region: formData.region || '',
+        province: formData.province || '',
+        city: formData.city || '',
+        barangay: formData.barangay || '',
+        street: formData.street || '',
+        zip_code: formData.zipCode || '',
+        region_code: formData.regionCode || '',
+        province_code: formData.provinceCode || '',
+        city_code: formData.cityCode || '',
+        position_applied: formData.positionApplied || '',
+        application_date: formData.applicationDate || null,
+        essential_functions: formData.essentialFunctions || '',
+        permanent: formData.permanent === 'Yes',
+        heard_about_position: formData.heardAboutPosition || '',
+        worked_before: formData.workedBefore || '',
+        worked_when: formData.workedWhen || null,
+        can_work_overtime: formData.canWorkOvertime === 'Yes',
+        has_drivers_license: formData.hasDriversLicense === 'Yes',
+        license_issuing_state: formData.licenseIssuingState || '',
+        shifts: formData.shifts || [],
+        shift_other_value: formData.shiftOtherValue || '',
+        shift_type_label: formData.shiftTypeLabel || '',
+        has_ncii: formData.hasNCII === 'Yes',
+        specialized_training: formData.specializedTraining || '',
+        other_qualifications: formData.otherQualifications || '',
+        computer_equipment: formData.computerEquipment || '',
+        professional_licenses: formData.professionalLicenses || '',
+        additional_skills: formData.additionalSkills || '',
+        emergency_contact_name: formData.emergencyContact?.name || '',
+        emergency_contact_relationship: formData.emergencyContact?.relationship || '',
+        emergency_contact_address: formData.emergencyContact?.address || '',
+        emergency_contact_number: formData.emergencyContact?.contactNumber || '',
+        applicant_signature: formData.applicantSignature || '',
+        date_signed: formData.dateSigned || null,
+        interviewed_by: formData.interviewedBy || '',
+        interview_date: formData.interviewDate || null,
+        remarks1: formData.remarks1 || '',
+        remarks2: formData.remarks2 || '',
+        neatness: formData.neatness || '',
+        ability: formData.ability || '',
+        hired: formData.hired || '',
+        hired_position: formData.hiredPosition || '',
+        hired_dept: formData.hiredDept || '',
+        salary_wage: formData.salaryWage || '',
+        reporting_date: formData.reportingDate || null,
+        sss_no: formData.sssNo || '',
+        has_birth_certificate: formData.hasBirthCertificate || false,
+        philhealth_no: formData.philhealthNo || '',
+        has_marriage_contract: formData.hasMarriageContract || false,
+        pagibig_no: formData.pagibigNo || '',
+        has_ncii_certificate: formData.hasNciiCertificate || false,
+        tin_no: formData.tinNo || '',
+        has_nbi: formData.hasNbi || false,
+        nbi_expiry_date: formData.nbiExpiryDate || null,
+        has_employment_contract: formData.hasEmploymentContract || false,
+        employment_contract_expiry_date: formData.employmentContractExpiryDate || null,
+        has_drug_test: formData.hasDrugTest || false,
+        drug_test_expiry_date: formData.drugTestExpiryDate || null,
+        has_health_card: formData.hasHealthCard || false,
+        health_card_expiry_date: formData.healthCardExpiryDate || null,
+        health_card_status: formData.healthCardStatus || '',
+        has_barangay_clearance: formData.hasBarangayClearance || false,
+        barangay_clearance_expiry_date: formData.barangayClearanceExpiryDate || null,
+        has_quitclaim: formData.hasQuitclaim || false,
+        has_long_pants: formData.hasLongPants || false,
+        long_pants_qty: formData.longPantsQty || '',
+        has_pvc_id: formData.hasPvcId || false,
+        has_sling: formData.hasSling || false,
+        has_long_sleeves: formData.hasLongSleeves || false,
+        long_sleeves_brown_qty: formData.longSleevesBrownQty || '',
+        long_sleeves_white_qty: formData.longSleevesWhiteQty || '',
+        long_sleeves_others: formData.longSleevesOthers || '',
+        uniform_remarks: formData.uniformRemarks || '',
+        ppe_safety_shoes: formData.ppeSafetyShoes || false,
+        ppe_grip_gloves: formData.ppeGripGloves || false,
+        ppe_cotton_gloves: formData.ppeCottonGloves || false,
+        ppe_hardhat: formData.ppeHardhat || false,
+        ppe_faceshield: formData.ppeFaceshield || false,
+        ppe_kn95_mask: formData.ppeKn95Mask || false,
+        ppe_spectacles: formData.ppeSpectacles || false,
+        ppe_earplug: formData.ppeEarplug || false,
+        ppe_welding_mask: formData.ppeWeldingMask || false,
+        ppe_welding_gloves: formData.ppeWeldingGloves || false,
+        ppe_welding_apron: formData.ppeWeldingApron || false,
+        ppe_full_body_harness: formData.ppeFullBodyHarness || false,
+        approved_hr_manager: formData.approvedHrManager || '',
+        approved_general_manager: formData.approvedGeneralManager || '',
+        approved_asst_manager: formData.approvedAsstManager || ''
+      };
+
+      let employeeId;
+
+      if (isEditing && editEmployeeId) {
+        // Update existing employee
+        const { error } = await supabase
+          .from('employees')
+          .update(employeeData)
+          .eq('id', editEmployeeId);
+
+        if (error) throw error;
+        employeeId = editEmployeeId;
+
+        // Log updated employee with detailed changes
+        const changes = originalEmployeeData ? detectSignificantChanges(originalEmployeeData, employeeData) : [];
+        const changeDescription = changes.length > 0
+          ? `${formData.lastName}, ${formData.firstName}: ${changes.join(', ')}`
+          : `${formData.lastName}, ${formData.firstName}'s information was updated`;
+
+        await logActivity('update', 'Employee information updated', changeDescription);
+        setOriginalEmployeeData(null);
+
+        // Delete existing related records
+        await supabase.from('employment_history').delete().eq('employee_id', employeeId);
+        await supabase.from('education').delete().eq('employee_id', employeeId);
+        await supabase.from('professional_references').delete().eq('employee_id', employeeId);
+      } else {
+        // Insert new employee
+        const { data, error } = await supabase
+          .from('employees')
+          .insert([employeeData])
+          .select()
+          .single();
+
+        if (error) throw error;
+        employeeId = data.id;
+
+        // Log new employee
+        await logActivity('new', 'New employee added', `${formData.lastName}, ${formData.firstName} joined ${formData.hiredDept || formData.department || 'the team'}`);
+      }
+
+      // Insert employment history - only non-empty rows
+      if (formData.employmentHistory && formData.employmentHistory.length > 0) {
+        const historyRecords = formData.employmentHistory
+          .filter(emp => emp.nameAddress1 || emp.nameAddress2 || emp.nameAddress3 || emp.posSkills1)
+          .map((emp, index) => ({
+            employee_id: employeeId,
+            name_address1: emp.nameAddress1 || '',
+            name_address2: emp.nameAddress2 || '',
+            name_address3: emp.nameAddress3 || '',
+            pay: emp.pay || '',
+            per: emp.per || '',
+            pos_skills1: emp.posSkills1 || '',
+            pos_skills2: emp.posSkills2 || '',
+            pos_skills3: emp.posSkills3 || '',
+            supervisor: emp.supervisor || '',
+            contact_no: emp.contactNo || '',
+            start_date: emp.startDate || null,
+            end_date: emp.endDate || null,
+            reason_leaving1: emp.reasonLeaving1 || '',
+            reason_leaving2: emp.reasonLeaving2 || '',
+            reason_leaving3: emp.reasonLeaving3 || '',
+            display_order: index
+          }));
+
+        if (historyRecords.length > 0) {
+          const { error: histError } = await supabase.from('employment_history').insert(historyRecords);
+          if (histError) console.error('Error inserting employment history:', histError);
+        }
+      }
+
+      // Insert education - only non-empty rows
+      if (formData.education && formData.education.length > 0) {
+        const educationRecords = formData.education
+          .filter(edu => edu.institution || edu.degree)
+          .map(edu => ({
+            employee_id: employeeId,
+            level: edu.level,
+            institution: edu.institution || '',
+            years: edu.years || '',
+            field: edu.field || '',
+            degree: edu.degree || ''
+          }));
+
+        if (educationRecords.length > 0) {
+          const { error: eduError } = await supabase.from('education').insert(educationRecords);
+          if (eduError) console.error('Error inserting education:', eduError);
+        }
+      }
+
+      // Insert references - only non-empty rows
+      if (formData.references && formData.references.length > 0) {
+        const referenceRecords = formData.references
+          .filter(ref => ref.firstName || ref.lastName || ref.telephone)
+          .map(ref => ({
+            employee_id: employeeId,
+            last_name: ref.lastName || '',
+            first_name: ref.firstName || '',
+            middle_name: ref.middleName || '',
+            address: ref.address || '',
+            telephone: ref.telephone || '',
+            occupation: ref.occupation || '',
+            years_known: ref.yearsKnown || ''
+          }));
+
+        if (referenceRecords.length > 0) {
+          const { error: refError } = await supabase.from('professional_references').insert(referenceRecords);
+          if (refError) console.error('Error inserting professional references:', refError);
+        }
+      }
+
+      // Refresh employee list
+      await fetchEmployees();
+
+      setShowModal(false);
+      setCurrentStep(1);
+      setIsEditing(false);
+      setIsViewOnly(false);
+      setEditEmployeeId(null);
+      setFormData(INITIAL_FORM_DATA);
+    } catch (error) {
+      console.error('Detailed Error saving employee:', error);
+      alert(`Failed to save employee: ${error.message || 'Unknown error'}. Please check your Supabase connection and schema.`);
+    }
   };
 
   const handleOpenAddModal = () => {
@@ -443,36 +804,213 @@ const EmployeeDashboard = () => {
     setShowModal(true);
   };
 
-  const handleEditEmployee = (employee) => {
-    const [firstName, ...lastNameParts] = (employee.name || '').split(' ');
-    const lastName = lastNameParts.join(' ');
-    setFormData({
+  const loadEmployeeData = async (employee) => {
+    // Check if Supabase is configured
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const useLocalMode = !supabaseUrl || !supabaseKey || supabaseUrl.includes('your-project-url') || supabaseKey.includes('your-anon-key');
+
+    // Extract names
+    const firstName = employee.first_name || (employee.name || '').split(' ')[0] || '';
+    const lastName = employee.last_name || (employee.name || '').split(' ').slice(1).join(' ') || '';
+
+    let baseData = {
       ...INITIAL_FORM_DATA,
       ...employee,
-      firstName: employee.firstName || firstName,
-      lastName: employee.lastName || lastName
-    });
+      employeeIdNumber: employee.employee_id ? employee.employee_id.replace('EDP NO.', '').replace('EDP.', '') : '',
+      firstName: firstName,
+      lastName: lastName,
+      middleName: employee.middle_name || '',
+      contactNumber: employee.contact_number || '',
+      zipCode: employee.zip_code || '',
+      regionCode: employee.region_code || '',
+      provinceCode: employee.province_code || '',
+      cityCode: employee.city_code || '',
+      positionApplied: employee.position_applied || '',
+      applicationDate: employee.application_date || '',
+      essentialFunctions: employee.essential_functions || '',
+      permanent: employee.permanent ? 'Yes' : 'No',
+      heardAboutPosition: employee.heard_about_position || '',
+      workedBefore: employee.worked_before || '',
+      workedWhen: employee.worked_when || '',
+      canWorkOvertime: employee.can_work_overtime ? 'Yes' : 'No',
+      hasDriversLicense: employee.has_drivers_license ? 'Yes' : 'No',
+      licenseIssuingState: employee.license_issuing_state || '',
+      shiftOtherValue: employee.shift_other_value || '',
+      shiftTypeLabel: employee.shift_type_label || '',
+      hasNCII: employee.has_ncii ? 'Yes' : 'No',
+      specializedTraining: employee.specialized_training || '',
+      otherQualifications: employee.other_qualifications || '',
+      computerEquipment: employee.computer_equipment || '',
+      professionalLicenses: employee.professional_licenses || '',
+      additionalSkills: employee.additional_skills || '',
+      emergencyContact: {
+        name: employee.emergency_contact_name || '',
+        relationship: employee.emergency_contact_relationship || '',
+        address: employee.emergency_contact_address || '',
+        contactNumber: employee.emergency_contact_number || ''
+      },
+      applicantSignature: employee.applicant_signature || '',
+      dateSigned: employee.date_signed || '',
+
+      // Hiring & Interview Info
+      interviewedBy: employee.interviewed_by || '',
+      interviewDate: employee.interview_date || '',
+      remarks1: employee.remarks1 || '',
+      remarks2: employee.remarks2 || '',
+      neatness: employee.neatness || '',
+      ability: employee.ability || '',
+      hired: employee.hired || '',
+      hiredPosition: employee.hired_position || '',
+      hiredDept: employee.hired_dept || '',
+      salaryWage: employee.salary_wage || '',
+      reportingDate: employee.reporting_date || '',
+
+      // Requirements & Government IDs
+      sssNo: employee.sss_no || '',
+      hasBirthCertificate: employee.has_birth_certificate || false,
+      philhealthNo: employee.philhealth_no || '',
+      hasMarriageContract: employee.has_marriage_contract || false,
+      pagibigNo: employee.pagibig_no || '',
+      hasNciiCertificate: employee.has_ncii_certificate || false,
+      tinNo: employee.tin_no || '',
+      hasNbi: employee.has_nbi || false,
+      nbiExpiryDate: employee.nbi_expiry_date || '',
+      hasEmploymentContract: employee.has_employment_contract || false,
+      employmentContractExpiryDate: employee.employment_contract_expiry_date || '',
+      hasDrugTest: employee.has_drug_test || false,
+      drugTestExpiryDate: employee.drug_test_expiry_date || '',
+      hasHealthCard: employee.has_health_card || false,
+      healthCardExpiryDate: employee.health_card_expiry_date || '',
+      healthCardStatus: employee.health_card_status || '',
+      hasBarangayClearance: employee.has_barangay_clearance || false,
+      barangayClearanceExpiryDate: employee.barangay_clearance_expiry_date || '',
+      hasQuitclaim: employee.has_quitclaim || false,
+
+      // Uniform & PPE
+      hasLongPants: employee.has_long_pants || false,
+      longPantsQty: employee.long_pants_qty || '',
+      hasPvcId: employee.has_pvc_id || false,
+      hasSling: employee.has_sling || false,
+      hasLongSleeves: employee.has_long_sleeves || false,
+      longSleevesBrownQty: employee.long_sleeves_brown_qty || '',
+      longSleevesWhiteQty: employee.long_sleeves_white_qty || '',
+      longSleevesOthers: employee.long_sleeves_others || '',
+      uniformRemarks: employee.uniform_remarks || '',
+      ppeSafetyShoes: employee.ppe_safety_shoes || false,
+      ppeGripGloves: employee.ppe_grip_gloves || false,
+      ppeCottonGloves: employee.ppe_cotton_gloves || false,
+      ppeHardhat: employee.ppe_hardhat || false,
+      ppeFaceshield: employee.ppe_faceshield || false,
+      ppeKn95Mask: employee.ppe_kn95_mask || false,
+      ppeSpectacles: employee.ppe_spectacles || false,
+      ppeEarplug: employee.ppe_earplug || false,
+      ppeWeldingMask: employee.ppe_welding_mask || false,
+      ppeWeldingGloves: employee.ppe_welding_gloves || false,
+      ppeWeldingApron: employee.ppe_welding_apron || false,
+      ppeFullBodyHarness: employee.ppe_full_body_harness || false,
+
+      // Approvals
+      approvedHrManager: employee.approved_hr_manager || '',
+      approvedGeneralManager: employee.approved_general_manager || '',
+      approvedAsstManager: employee.approved_asst_manager || ''
+    };
+
+    if (useLocalMode) {
+      setFormData(baseData);
+      return;
+    }
+
+    try {
+      // Fetch related data in parallel
+      const [historyRes, educationRes, referencesRes] = await Promise.all([
+        supabase.from('employment_history').select('*').eq('employee_id', employee.id).order('display_order', { ascending: true }),
+        supabase.from('education').select('*').eq('employee_id', employee.id),
+        supabase.from('professional_references').select('*').eq('employee_id', employee.id)
+      ]);
+
+      if (historyRes.data) {
+        baseData.employmentHistory = historyRes.data.map(h => ({
+          nameAddress1: h.name_address1 || '',
+          nameAddress2: h.name_address2 || '',
+          nameAddress3: h.name_address3 || '',
+          pay: h.pay || '',
+          per: h.per || '',
+          posSkills1: h.pos_skills1 || '',
+          posSkills2: h.pos_skills2 || '',
+          posSkills3: h.pos_skills3 || '',
+          supervisor: h.supervisor || '',
+          contactNo: h.contact_no || '',
+          startDate: h.start_date || '',
+          endDate: h.end_date || '',
+          reasonLeaving1: h.reason_leaving1 || '',
+          reasonLeaving2: h.reason_leaving2 || '',
+          reasonLeaving3: h.reason_leaving3 || ''
+        }));
+        // Ensure at least 3 rows
+        while (baseData.employmentHistory.length < 3) {
+          baseData.employmentHistory.push({ nameAddress1: '', nameAddress2: '', nameAddress3: '', pay: '', per: '', posSkills1: '', posSkills2: '', posSkills3: '', supervisor: '', contactNo: '', startDate: '', endDate: '', reasonLeaving1: '', reasonLeaving2: '', reasonLeaving3: '' });
+        }
+      }
+
+      if (educationRes.data) {
+        // Map degrees/levels to our standard 4 levels if possible, or just use what's there
+        const mappedEdu = educationRes.data.map(e => ({
+          level: e.level,
+          institution: e.institution || '',
+          years: e.years || '',
+          field: e.field || '',
+          degree: e.degree || ''
+        }));
+
+        // Match levels to INITIAL_FORM_DATA levels
+        const standardEdu = INITIAL_FORM_DATA.education.map(std => {
+          const found = mappedEdu.find(m => m.level === std.level);
+          return found || std;
+        });
+        baseData.education = standardEdu;
+      }
+
+      if (referencesRes.data) {
+        baseData.references = referencesRes.data.map(r => ({
+          lastName: r.last_name || '',
+          firstName: r.first_name || '',
+          middleName: r.middle_name || '',
+          address: r.address || '',
+          telephone: r.telephone || '',
+          occupation: r.occupation || '',
+          yearsKnown: r.years_known || ''
+        }));
+        // Ensure at least 2 rows
+        while (baseData.references.length < 2) {
+          baseData.references.push({ lastName: '', firstName: '', middleName: '', address: '', telephone: '', occupation: '', yearsKnown: '' });
+        }
+      }
+
+      setFormData(baseData);
+    } catch (error) {
+      console.error('Error loading related employee data:', error.message);
+      setFormData(baseData); // Still set base data even if related fetch fails
+    }
+  };
+
+  const handleEditEmployee = async (employee) => {
     setIsEditing(true);
     setIsViewOnly(false);
     setEditEmployeeId(employee.id);
+    setOriginalEmployeeData(employee);
     setCurrentStep(1);
     setShowModal(true);
+    await loadEmployeeData(employee);
   };
 
-  const handleViewEmployee = (employee) => {
-    const [firstName, ...lastNameParts] = (employee.name || '').split(' ');
-    const lastName = lastNameParts.join(' ');
-    setFormData({
-      ...INITIAL_FORM_DATA,
-      ...employee,
-      firstName: employee.firstName || firstName,
-      lastName: employee.lastName || lastName
-    });
+  const handleViewEmployee = async (employee) => {
     setIsEditing(false);
     setIsViewOnly(true);
     setEditEmployeeId(employee.id);
     setCurrentStep(1);
     setShowModal(true);
+    await loadEmployeeData(employee);
   };
 
   const closeModal = () => {
@@ -510,7 +1048,49 @@ const EmployeeDashboard = () => {
   };
 
   const handleDeleteEmployee = (id) => {
-    setEmployees(employees.filter(emp => emp.id !== id));
+    const employee = employees.find(emp => emp.id === id);
+    if (employee) {
+      setDeleteTarget(employee);
+      setShowDeleteModal(true);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (deleteTarget) {
+      // Check if Supabase is configured
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const useLocalMode = !supabaseUrl || !supabaseKey || supabaseUrl.includes('your-project-url') || supabaseKey.includes('your-anon-key');
+
+      if (useLocalMode) {
+        // Local mode - use state only
+        setEmployees(employees.filter(emp => emp.id !== deleteTarget.id));
+        setShowDeleteModal(false);
+        setDeleteTarget(null);
+        return;
+      }
+
+      try {
+        const { error } = await supabase
+          .from('employees')
+          .delete()
+          .eq('id', deleteTarget.id);
+
+        if (error) throw error;
+
+        // Log deleted employee
+        await logActivity('delete', 'Employee deleted', `${deleteTarget.last_name}, ${deleteTarget.first_name} was removed from the system`);
+
+        // Refresh employee list
+        await fetchEmployees();
+
+        setShowDeleteModal(false);
+        setDeleteTarget(null);
+      } catch (error) {
+        console.error('Error deleting employee:', error.message);
+        alert('Failed to delete employee. Please try again.');
+      }
+    }
   };
 
   return (
@@ -574,12 +1154,7 @@ const EmployeeDashboard = () => {
         }
 
         .table-row {
-          transition: all 0.2s ease;
-        }
-
-        .table-row:hover {
-          background: linear-gradient(90deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
-          transform: translateX(4px);
+          /* Hover effect removed */
         }
 
         .btn-primary {
@@ -805,23 +1380,31 @@ const EmployeeDashboard = () => {
                 <div className="card-enter bg-white rounded-2xl p-8 shadow-xl border border-slate-100" style={{ animationDelay: '0.4s' }}>
                   <h2 className="text-2xl font-bold text-slate-800 mb-6">Recent Activity</h2>
                   <div className="space-y-4">
-                    {recentActivity.map((activity, index) => (
-                      <div key={index} className="activity-item flex items-start gap-4 p-4 rounded-xl hover:bg-slate-50 transition-all">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${activity.type === 'new' ? 'bg-emerald-100' :
-                          activity.type === 'update' ? 'bg-blue-100' :
-                            'bg-orange-100'
-                          }`}>
-                          {activity.type === 'new' && <UserCheck className="w-5 h-5 text-emerald-600" />}
-                          {activity.type === 'update' && <Pencil className="w-5 h-5 text-blue-600" />}
-                          {activity.type === 'status' && <Users className="w-5 h-5 text-orange-600" />}
+                    {recentActivity.length > 0 ? (
+                      recentActivity.map((activity, index) => (
+                        <div key={activity.id || index} className="activity-item flex items-start gap-4 p-4 rounded-xl hover:bg-slate-50 transition-all">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${activity.type === 'new' ? 'bg-emerald-100' :
+                            activity.type === 'update' ? 'bg-blue-100' :
+                              activity.type === 'delete' ? 'bg-red-100' :
+                                'bg-orange-100'
+                            }`}>
+                            {activity.type === 'new' && <UserCheck className="w-5 h-5 text-emerald-600" />}
+                            {activity.type === 'update' && <Pencil className="w-5 h-5 text-blue-600" />}
+                            {activity.type === 'delete' && <Trash2 className="w-5 h-5 text-red-600" />}
+                            {!['new', 'update', 'delete'].includes(activity.type) && <Users className="w-5 h-5 text-orange-600" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-slate-800">{activity.title}</p>
+                            <p className="text-slate-500 text-sm mt-1">{activity.description}</p>
+                          </div>
+                          <span className="text-slate-400 text-sm whitespace-nowrap">{formatRelativeTime(activity.created_at)}</span>
                         </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-slate-800">{activity.title}</p>
-                          <p className="text-slate-500 text-sm mt-1">{activity.description}</p>
-                        </div>
-                        <span className="text-slate-400 text-sm whitespace-nowrap">{activity.time}</span>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-slate-400">No recent activity found.</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               </div>
@@ -863,13 +1446,31 @@ const EmployeeDashboard = () => {
                         </select>
                       </div>
                     </div>
-                    <button
-                      onClick={handleOpenAddModal}
-                      className="btn-primary flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-semibold shadow-lg whitespace-nowrap"
-                    >
-                      <Plus className="w-5 h-5" />
-                      Add Employee
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setShowAllColumns(!showAllColumns)}
+                        className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 transition-all shadow-lg whitespace-nowrap"
+                      >
+                        {showAllColumns ? (
+                          <>
+                            <Minimize2 className="w-5 h-5" />
+                            Show less
+                          </>
+                        ) : (
+                          <>
+                            <Maximize2 className="w-5 h-5" />
+                            Show more
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={handleOpenAddModal}
+                        className="btn-primary flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-semibold shadow-lg whitespace-nowrap"
+                      >
+                        <Plus className="w-5 h-5" />
+                        Add Employee
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -879,12 +1480,20 @@ const EmployeeDashboard = () => {
                     <table className="w-full">
                       <thead>
                         <tr className="bg-gradient-to-r from-slate-50 to-indigo-50 border-b-2 border-indigo-100">
-                          <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Employee ID</th>
+                          <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Emp. ID</th>
                           <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Name</th>
                           <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Position</th>
                           <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Department</th>
-                          <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Email</th>
-                          <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
+                          <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Birthdate</th>
+                          <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Sex</th>
+                          <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Age</th>
+                          {showAllColumns && (
+                            <>
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Address</th>
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Contact</th>
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
+                            </>
+                          )}
                           <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
@@ -892,28 +1501,48 @@ const EmployeeDashboard = () => {
                         {currentItems.map((employee) => (
                           <tr key={employee.id} className="table-row">
                             <td className="px-3 py-4 whitespace-nowrap">
-                              <span className="badge font-bold text-slate-700">{employee.id}</span>
+                              <span className="badge font-bold text-slate-700 text-[13px]">{employee.employee_id || '(No ID)'}</span>
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap">
-                              <span className="font-semibold text-slate-800">{employee.name}</span>
+                              <span className="font-semibold text-slate-800 text-[13px]">{employee.name}</span>
                             </td>
                             <td className="px-3 py-4">
-                              <span className="text-slate-600">{employee.position}</span>
+                              <span className="text-slate-600 text-[13px]">{employee.hired_position || employee.position || '-'}</span>
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap">
-                              <span className="text-slate-600">{employee.department}</span>
-                            </td>
-                            <td className="px-3 py-4 break-all">
-                              <span className="text-slate-500">{employee.email}</span>
+                              <span className="text-slate-600 text-[13px]">{employee.hired_dept || employee.department || '-'}</span>
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap">
-                              <span className={`badge px-3 py-1 rounded-full ${employee.status === 'Active'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-slate-100 text-slate-600'
-                                }`}>
-                                {employee.status}
+                              <span className="text-slate-500 text-[13px]">
+                                {employee.birthday ? new Date(employee.birthday).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
                               </span>
                             </td>
+                            <td className="px-3 py-4 whitespace-nowrap">
+                              <span className="text-slate-600 text-[13px]">{employee.sex || '-'}</span>
+                            </td>
+                            <td className="px-3 py-4 whitespace-nowrap">
+                              <span className="text-slate-600 text-[13px]">{employee.age || '-'}</span>
+                            </td>
+                            {showAllColumns && (
+                              <>
+                                <td className="px-3 py-4 max-w-[150px] truncate">
+                                  <span className="text-slate-600 text-[13px]">
+                                    {employee.city}{employee.city && employee.province ? ', ' : ''}{employee.province}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <span className="text-slate-600 text-[13px] font-medium">{employee.contact_number || '-'}</span>
+                                </td>
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <span className={`badge px-3 py-1 rounded-full text-[13px] ${employee.status === 'Active'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-slate-100 text-slate-600'
+                                    }`}>
+                                    {employee.status}
+                                  </span>
+                                </td>
+                              </>
+                            )}
                             <td className="px-3 py-4 whitespace-nowrap">
                               <div className="flex items-center gap-2">
                                 <button
@@ -1036,41 +1665,97 @@ const EmployeeDashboard = () => {
       {/* Add Employee Modal */}
       {showModal && (
         <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="modal-content bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-800">
-                  {isViewOnly ? 'View Employee Details' : (isEditing ? 'Edit Employee' : 'Add New Employee')}
-                </h2>
-                <p className="text-slate-500 text-sm mt-1">
-                  Step {currentStep} of 6: {
-                    currentStep === 1 ? 'Employee Information' :
-                      currentStep === 2 ? 'Employment History' :
-                        currentStep === 3 ? 'Education & Certificates' :
-                          currentStep === 4 ? 'References & Emergency Contact' :
-                            currentStep === 5 ? 'Information to the Applicant' :
-                              'Step 6'
-                  }
-                </p>
+          <div className="modal-content bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
+            {/* Sticky Header Section */}
+            <div className="sticky top-0 z-20 bg-white px-8 pt-8 pb-4 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800">
+                    {isViewOnly ? 'View Employee Details' : (isEditing ? 'Edit Employee' : 'Add New Employee')}
+                  </h2>
+                  {!isViewOnly && (
+                    <p className="text-slate-500 text-sm mt-1">
+                      Step {currentStep} of 6: {
+                        currentStep === 1 ? 'Employee Information' :
+                          currentStep === 2 ? 'Employment History' :
+                            currentStep === 3 ? 'Education & Certificates' :
+                              currentStep === 4 ? 'References & Emergency Contact' :
+                                currentStep === 5 ? 'Information to the Applicant' :
+                                  'Step 6'
+                      }
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={closeModal}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+                >
+                  <X className="w-5 h-5 text-slate-600" />
+                </button>
               </div>
-              <button
-                onClick={closeModal}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-all"
-              >
-                <X className="w-5 h-5 text-slate-600" />
-              </button>
+
+              {!isViewOnly && (
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-600 transition-all duration-500 ease-in-out"
+                    style={{ width: `${(currentStep / 6) * 100}%` }}
+                  />
+                </div>
+              )}
             </div>
 
-            <div className="w-full h-2 bg-slate-100 rounded-full mb-8 overflow-hidden">
-              <div
-                className="h-full bg-indigo-600 transition-all duration-500 ease-in-out"
-                style={{ width: `${(currentStep / 6) * 100}%` }}
-              />
-            </div>
-
-            <form onSubmit={handleAddEmployee} className="space-y-6">
-              {currentStep === 1 ? (
+            <form onSubmit={handleAddEmployee} className="space-y-6 p-8 pt-4">
+              {(isViewOnly || currentStep === 1) && (
                 <div className="space-y-6 card-enter">
+                  {/* Application Metadata */}
+                  <div className="space-y-4 mb-8 pb-6 border-b border-slate-100">
+                    {/* Employee ID - Full Width Row */}
+                    <div className="flex items-center gap-3 justify-center">
+                      <label className="text-[13px] font-bold text-slate-700 whitespace-nowrap">Employee ID:</label>
+                      <div className="flex items-center border-b-2 border-slate-300 focus-within:border-indigo-600 transition-colors h-8">
+                        <span className="text-[13px] font-medium text-slate-800 pl-1 leading-none">EDP NO.</span>
+                        <input
+                          type="text"
+                          value={formData.employeeIdNumber}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                            setFormData({ ...formData, employeeIdNumber: value });
+                          }}
+                          className="w-14 pl-1 focus:outline-none bg-transparent text-[13px] font-medium text-slate-800 leading-none h-full"
+                          disabled={isViewOnly}
+                          placeholder="0000"
+                          maxLength="4"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Position and Date - Same Row */}
+                    <div className="flex flex-col md:flex-row gap-8">
+                      <div className="flex-[2] flex items-end gap-3">
+                        <label className="text-sm font-bold text-slate-700 whitespace-nowrap">Position applying for:</label>
+                        <input
+                          type="text"
+                          value={formData.positionApplied || ''}
+                          onChange={(e) => setFormData({ ...formData, positionApplied: e.target.value })}
+                          className="flex-1 px-2 py-1 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm"
+                          disabled={isViewOnly}
+                          placeholder=""
+                        />
+                      </div>
+                      <div className="flex-1 flex items-end gap-3">
+                        <label className="text-sm font-bold text-slate-700 whitespace-nowrap">Date of Application:</label>
+                        <input
+                          type="date"
+                          value={formData.applicationDate || ''}
+                          onChange={(e) => setFormData({ ...formData, applicationDate: e.target.value })}
+                          className="flex-1 px-2 py-1 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm"
+                          disabled={isViewOnly}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Personal Info Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">First Name</label>
@@ -1107,6 +1792,7 @@ const EmployeeDashboard = () => {
                     </div>
                   </div>
 
+                  {/* Contact Info Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Contact Number</label>
@@ -1145,6 +1831,7 @@ const EmployeeDashboard = () => {
                     </div>
                   </div>
 
+                  {/* Other Info Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Age</label>
@@ -1184,6 +1871,7 @@ const EmployeeDashboard = () => {
                     </div>
                   </div>
 
+                  {/* Address Section */}
                   <div className="border-t border-slate-100 pt-4">
                     <h3 className="text-lg font-bold text-slate-800 mb-4">Address Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -1270,223 +1958,238 @@ const EmployeeDashboard = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-4 mb-4">
-                      <div className="flex flex-col items-start gap-2">
-                        <label className="text-sm font-semibold text-slate-700">Can you perform the position's essential functions</label>
-                        <div className="flex items-center space-x-6">
-                          <span className="text-sm font-semibold text-slate-700">with or without accommodations?</span>
-                          <label className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={formData.essentialFunctions === 'Yes'}
-                              onChange={(e) => !isViewOnly && setFormData({ ...formData, essentialFunctions: 'Yes' })}
-                              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                              disabled={isViewOnly}
-                            />
-                            <span className="text-slate-700">Yes</span>
-                          </label>
-                          <label className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={formData.essentialFunctions === 'No'}
-                              onChange={(e) => !isViewOnly && setFormData({ ...formData, essentialFunctions: 'No' })}
-                              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                              disabled={isViewOnly}
-                            />
-                            <span className="text-slate-700">No</span>
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-4">
-                        <label className="text-sm font-semibold text-slate-700">I am seeking a permanent position:</label>
-                        <div className="flex items-center space-x-6">
-                          <label className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={formData.permanent === 'Yes'}
-                              onChange={(e) => !isViewOnly && setFormData({ ...formData, permanent: 'Yes' })}
-                              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                              disabled={isViewOnly}
-                            />
-                            <span className="text-slate-700">Yes</span>
-                          </label>
-                          <label className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={formData.permanent === 'No'}
-                              onChange={(e) => !isViewOnly && setFormData({ ...formData, permanent: 'No' })}
-                              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                              disabled={isViewOnly}
-                            />
-                            <span className="text-slate-700">No</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">How did you hear about the position?</label>
-                      <input
-                        type="text"
-                        value={formData.heardAboutPosition}
-                        onChange={(e) => setFormData({ ...formData, heardAboutPosition: e.target.value })}
-                        className="w-1/2 px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
-                        disabled={isViewOnly}
-                        placeholder="Min. of 200 characters"
-                      />
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-4 mb-8">
-                      <div className="w-full md:w-1/2">
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Have you ever worked for this company?</label>
-                        <input
-                          type="text"
-                          value={formData.workedBefore}
-                          onChange={(e) => setFormData({ ...formData, workedBefore: e.target.value })}
-                          className="w-full px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
-                          disabled={isViewOnly}
-                          placeholder="Yes/No"
-                        />
-                      </div>
-                      <div className="w-full md:w-1/2">
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">If yes, when?</label>
-                        <input
-                          type="text"
-                          value={formData.workedWhen}
-                          onChange={(e) => setFormData({ ...formData, workedWhen: e.target.value })}
-                          className="w-full px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
-                          disabled={isViewOnly}
-                          placeholder="Year/Date"
-                        />
-                      </div>
-                    </div>
-
                     <div className="space-y-6">
                       <div className="space-y-4">
-                        <p className="text-sm font-bold text-slate-800 tracking-wide">If necessary for the job, I can:</p>
-
-                        <div className="flex items-center space-x-6">
-                          <label className="text-sm font-semibold text-slate-700">Work overtime?</label>
+                        <div className="flex flex-col items-start gap-2">
+                          <label className="text-sm font-semibold text-slate-700">Can you perform the position's essential functions</label>
                           <div className="flex items-center space-x-6">
-                            <label className="flex items-center space-x-2 cursor-pointer group">
+                            <span className="text-sm font-semibold text-slate-700">with or without accommodations?</span>
+                            <label className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
-                                checked={formData.canWorkOvertime === 'Yes'}
-                                onChange={(e) => !isViewOnly && setFormData({ ...formData, canWorkOvertime: 'Yes' })}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                                checked={formData.essentialFunctions === 'Yes'}
+                                onChange={(e) => !isViewOnly && setFormData({ ...formData, essentialFunctions: 'Yes' })}
+                                className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                 disabled={isViewOnly}
                               />
-                              <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Yes</span>
+                              <span className="text-slate-700">Yes</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer group">
+                            <label className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
-                                checked={formData.canWorkOvertime === 'No'}
-                                onChange={(e) => !isViewOnly && setFormData({ ...formData, canWorkOvertime: 'No' })}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                                checked={formData.essentialFunctions === 'No'}
+                                onChange={(e) => !isViewOnly && setFormData({ ...formData, essentialFunctions: 'No' })}
+                                className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                 disabled={isViewOnly}
                               />
-                              <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">No</span>
+                              <span className="text-slate-700">No</span>
                             </label>
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-6">
-                          <label className="text-sm font-semibold text-slate-700">Do you have a Driver's License?</label>
+                        <div className="flex items-center space-x-4">
+                          <label className="text-sm font-semibold text-slate-700">I am seeking a permanent position:</label>
                           <div className="flex items-center space-x-6">
-                            <label className="flex items-center space-x-2 cursor-pointer group">
+                            <label className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
-                                checked={formData.hasDriversLicense === 'Yes'}
-                                onChange={(e) => !isViewOnly && setFormData({ ...formData, hasDriversLicense: 'Yes' })}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                                checked={formData.permanent === 'Yes'}
+                                onChange={(e) => !isViewOnly && setFormData({ ...formData, permanent: 'Yes' })}
+                                className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                 disabled={isViewOnly}
                               />
-                              <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Yes</span>
+                              <span className="text-slate-700">Yes</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer group">
+                            <label className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
-                                checked={formData.hasDriversLicense === 'No'}
-                                onChange={(e) => !isViewOnly && setFormData({ ...formData, hasDriversLicense: 'No' })}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                                checked={formData.permanent === 'No'}
+                                onChange={(e) => !isViewOnly && setFormData({ ...formData, permanent: 'No' })}
+                                className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                 disabled={isViewOnly}
                               />
-                              <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">No</span>
+                              <span className="text-slate-700">No</span>
                             </label>
                           </div>
                         </div>
 
-                        <div className={`space-y-4 transition-all duration-300 ${formData.hasDriversLicense === 'Yes' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden pointer-events-none'}`}>
-                          <p className="text-sm font-semibold text-slate-700">If so, fill out the following:</p>
-                          <div className="flex items-end gap-4 ml-4">
-                            <label className="text-sm font-semibold text-slate-700 mb-4 whitespace-nowrap">Issuing state:</label>
-                            <input
-                              type="text"
-                              value={formData.licenseIssuingState}
-                              onChange={(e) => setFormData({ ...formData, licenseIssuingState: e.target.value })}
-                              className="w-48 px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
-                              disabled={isViewOnly || formData.hasDriversLicense !== 'Yes'}
-                              placeholder="State Name"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4 pt-4 border-t border-slate-100">
-                        <p className="text-sm font-bold text-slate-800 tracking-wide">s: (check all that apply)</p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          {['Any', 'Day', 'Night', 'Swing', 'Rotating', 'Split', 'Graveyard'].map((shift) => (
-                            <label key={shift} className="flex items-center space-x-2 cursor-pointer group">
-                              <input
-                                type="checkbox"
-                                checked={formData.shifts.includes(shift)}
-                                onChange={() => handleShiftChange(shift)}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
-                              />
-                              <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">{shift}</span>
-                            </label>
-                          ))}
-                          <div className="flex items-center space-x-2 group">
-                            <label className="flex items-center space-x-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={formData.shifts.includes('Other')}
-                                onChange={() => handleShiftChange('Other')}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
-                              />
-                              <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Other:</span>
-                            </label>
-                            <input
-                              type="text"
-                              value={formData.shiftOtherValue}
-                              onChange={(e) => setFormData({ ...formData, shiftOtherValue: e.target.value })}
-                              className="w-full px-2 py-1 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm"
-                              disabled={isViewOnly || !formData.shifts.includes('Other')}
-                              placeholder="Specify..."
-                            />
-                          </div>
-                        </div>
-                        <div className="flex items-end gap-2 max-w-md">
-                          <label className="text-sm font-semibold text-slate-700 whitespace-nowrap mb-1">Type: </label>
+                        <div className="mb-4">
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">How did you hear about the position?</label>
                           <input
                             type="text"
-                            value={formData.shiftTypeLabel}
-                            onChange={(e) => setFormData({ ...formData, shiftTypeLabel: e.target.value })}
-                            className="flex-1 px-2 py-1 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm"
+                            value={formData.heardAboutPosition}
+                            onChange={(e) => setFormData({ ...formData, heardAboutPosition: e.target.value })}
+                            className="w-1/2 px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
                             disabled={isViewOnly}
-                            placeholder="Shift details"
+                            placeholder="Min. of 200 characters"
                           />
                         </div>
-                      </div>
 
+                        <div className="flex flex-col md:flex-row gap-4 mb-4">
+                          <div className="w-full md:w-1/2">
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Have you ever worked for this company?</label>
+                            <div className="flex items-center space-x-6 pt-2">
+                              <label className="flex items-center space-x-2 cursor-pointer group">
+                                <input
+                                  type="checkbox"
+                                  checked={formData.workedBefore === 'Yes'}
+                                  onChange={(e) => !isViewOnly && setFormData({ ...formData, workedBefore: 'Yes' })}
+                                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                                  disabled={isViewOnly}
+                                />
+                                <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Yes</span>
+                              </label>
+                              <label className="flex items-center space-x-2 cursor-pointer group">
+                                <input
+                                  type="checkbox"
+                                  checked={formData.workedBefore === 'No'}
+                                  onChange={(e) => !isViewOnly && setFormData({ ...formData, workedBefore: 'No', workedWhen: '' })}
+                                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                                  disabled={isViewOnly}
+                                />
+                                <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">No</span>
+                              </label>
+                            </div>
+                          </div>
+                          <div className="w-full md:w-1/2">
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">If yes, when?</label>
+                            <input
+                              type="date"
+                              value={formData.workedWhen}
+                              onChange={(e) => setFormData({ ...formData, workedWhen: e.target.value })}
+                              className={`w-full px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent transition-opacity ${formData.workedBefore !== 'Yes' ? 'opacity-50 cursor-not-allowed' : 'opacity-100'}`}
+                              disabled={isViewOnly || formData.workedBefore !== 'Yes'}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-6">
+                          <div className="space-y-4">
+                            <p className="text-sm font-bold text-slate-800 tracking-wide">If necessary for the job, I can:</p>
+
+                            <div className="flex items-center space-x-6">
+                              <label className="text-sm font-semibold text-slate-700">Work overtime?</label>
+                              <div className="flex items-center space-x-6">
+                                <label className="flex items-center space-x-2 cursor-pointer group">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.canWorkOvertime === 'Yes'}
+                                    onChange={(e) => !isViewOnly && setFormData({ ...formData, canWorkOvertime: 'Yes' })}
+                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                                    disabled={isViewOnly}
+                                  />
+                                  <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Yes</span>
+                                </label>
+                                <label className="flex items-center space-x-2 cursor-pointer group">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.canWorkOvertime === 'No'}
+                                    onChange={(e) => !isViewOnly && setFormData({ ...formData, canWorkOvertime: 'No' })}
+                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                                    disabled={isViewOnly}
+                                  />
+                                  <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">No</span>
+                                </label>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center space-x-6">
+                              <label className="text-sm font-semibold text-slate-700">Do you have a Driver's License?</label>
+                              <div className="flex items-center space-x-6">
+                                <label className="flex items-center space-x-2 cursor-pointer group">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.hasDriversLicense === 'Yes'}
+                                    onChange={(e) => !isViewOnly && setFormData({ ...formData, hasDriversLicense: 'Yes' })}
+                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                                    disabled={isViewOnly}
+                                  />
+                                  <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Yes</span>
+                                </label>
+                                <label className="flex items-center space-x-2 cursor-pointer group">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.hasDriversLicense === 'No'}
+                                    onChange={(e) => !isViewOnly && setFormData({ ...formData, hasDriversLicense: 'No' })}
+                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                                    disabled={isViewOnly}
+                                  />
+                                  <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">No</span>
+                                </label>
+                              </div>
+                            </div>
+
+                            <div className={`space-y-4 transition-all duration-300 ${formData.hasDriversLicense === 'Yes' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden pointer-events-none'}`}>
+                              <p className="text-sm font-semibold text-slate-700">If so, fill out the following:</p>
+                              <div className="flex items-end gap-4 ml-4">
+                                <label className="text-sm font-semibold text-slate-700 mb-4 whitespace-nowrap">Issuing state:</label>
+                                <input
+                                  type="text"
+                                  value={formData.licenseIssuingState}
+                                  onChange={(e) => setFormData({ ...formData, licenseIssuingState: e.target.value })}
+                                  className="w-48 px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
+                                  disabled={isViewOnly || formData.hasDriversLicense !== 'Yes'}
+                                  placeholder="State Name"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4 pt-4 border-t border-slate-100">
+                            <p className="text-sm font-bold text-slate-800 tracking-wide">s: (check all that apply)</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              {['Any', 'Day', 'Night', 'Swing', 'Rotating', 'Split', 'Graveyard'].map((shift) => (
+                                <label key={shift} className="flex items-center space-x-2 cursor-pointer group">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.shifts.includes(shift)}
+                                    onChange={() => handleShiftChange(shift)}
+                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                                  />
+                                  <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">{shift}</span>
+                                </label>
+                              ))}
+                              <div className="flex items-center space-x-2 group">
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.shifts.includes('Other')}
+                                    onChange={() => handleShiftChange('Other')}
+                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
+                                  />
+                                  <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Other:</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.shiftOtherValue}
+                                  onChange={(e) => setFormData({ ...formData, shiftOtherValue: e.target.value })}
+                                  className="w-full px-2 py-1 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm"
+                                  disabled={isViewOnly || !formData.shifts.includes('Other')}
+                                  placeholder="Specify..."
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-end gap-2 max-w-md">
+                              <label className="text-sm font-semibold text-slate-700 whitespace-nowrap mb-1">Type: </label>
+                              <input
+                                type="text"
+                                value={formData.shiftTypeLabel}
+                                onChange={(e) => setFormData({ ...formData, shiftTypeLabel: e.target.value })}
+                                className="flex-1 px-2 py-1 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm"
+                                disabled={isViewOnly}
+                                placeholder="Shift details"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              ) : currentStep === 2 ? (
+              )}
+              {(isViewOnly || currentStep === 2) && (
                 <div className="space-y-6 card-enter">
-                  <p className="text-sm text-slate-500 italic">List most recent employment first.</p>
+                  <p className="text-sm text-slate-500">List most recent employment first.</p>
 
                   <div className="overflow-hidden border-2 border-slate-200 rounded-xl">
                     <table className="w-full border-collapse">
@@ -1661,7 +2364,8 @@ const EmployeeDashboard = () => {
                     </table>
                   </div>
                 </div>
-              ) : currentStep === 3 ? (
+              )}
+              {(isViewOnly || currentStep === 3) && (
                 <div className="space-y-6 card-enter">
                   <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
                     <h3 className="text-base font-bold text-slate-800 mb-6 text-center">EDUCATION</h3>
@@ -1826,13 +2530,13 @@ const EmployeeDashboard = () => {
                           onChange={(e) => setFormData({ ...formData, additionalSkills: e.target.value })}
                           className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
                           disabled={isViewOnly}
-                          placeholder="Enter additional skills..."
                         />
                       </div>
                     </div>
                   </div>
                 </div>
-              ) : currentStep === 4 ? (
+              )}
+              {(isViewOnly || currentStep === 4) && (
                 <div className="space-y-6 card-enter">
                   <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
                     <h3 className="text-base font-bold text-slate-800 mb-4 text-center">REFERENCES</h3>
@@ -2151,7 +2855,8 @@ const EmployeeDashboard = () => {
                     </div>
                   </div>
                 </div>
-              ) : currentStep === 5 ? (
+              )}
+              {(isViewOnly || currentStep === 5) && (
                 <div className="space-y-6 card-enter">
                   <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
                     <h3 className="text-base font-bold text-slate-800 mb-6 text-center uppercase tracking-wider">INFORMATION TO THE APPLICANT</h3>
@@ -2166,18 +2871,18 @@ const EmployeeDashboard = () => {
 
                       <div className="pt-8 mt-8 border-t border-slate-200">
                         <div className="flex flex-col md:flex-row justify-between items-end gap-8">
-                          <div className="w-full md:w-1/2">
+                          <div className="w-full md:w-[70%]">
                             <label className="block text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider text-center">
                               Signature of Applicant (Draw with Mouse/Touch)
                             </label>
                             <SignaturePad
-                              value={formData.applicantSignature}
+                              value={formData.applicantSignature || ''}
                               onChange={(val) => setFormData({ ...formData, applicantSignature: val })}
                               disabled={isViewOnly}
                             />
                             <p className="text-[10px] text-slate-400 mt-2 text-center italic">Sign inside the box above</p>
                           </div>
-                          <div className="w-full md:w-1/3">
+                          <div className="w-full md:w-[25%]">
                             <input
                               type="date"
                               value={formData.dateSigned}
@@ -2192,14 +2897,11 @@ const EmployeeDashboard = () => {
                         </div>
                       </div>
 
-                      <div className="pt-6 mt-6 border-t border-slate-100 text-[11px] text-slate-500 leading-relaxed text-center max-w-2xl mx-auto">
-                        <span className="font-bold text-slate-700">Equal Employment Opportunity: </span>
-                        While many employers are required by Labor law to have an Affirmative Action Program, all employers are required to provide equal employment opportunity and may ask your national origin, race, and sex for planning and reporting purposes only. This information is optional and failure to provide it will not affect your employment application.
-                      </div>
                     </div>
                   </div>
                 </div>
-              ) : (
+              )}
+              {(isViewOnly || currentStep === 6) && (
                 <div className="space-y-6 card-enter">
                   <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
 
@@ -2780,10 +3482,10 @@ const EmployeeDashboard = () => {
                   onClick={closeModal}
                   className="px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all"
                 >
-                  Cancel
+                  {isViewOnly ? 'Close' : 'Cancel'}
                 </button>
                 <div className="flex-1 flex justify-end gap-3">
-                  {currentStep > 1 && (
+                  {(!isViewOnly && currentStep > 1) && (
                     <button
                       type="button"
                       onClick={() => setCurrentStep(currentStep - 1)}
@@ -2792,23 +3494,60 @@ const EmployeeDashboard = () => {
                       Previous
                     </button>
                   )}
-                  {(!isViewOnly || currentStep < 6) && (
+                  {!isViewOnly && (
                     <button
                       type="submit"
                       className="btn-primary px-8 py-3 text-white rounded-xl font-semibold shadow-lg"
                     >
                       {currentStep === 6
                         ? (isEditing ? 'Update Employee' : 'Save Employee')
-                        : 'Next Step'}
+                        : 'Next'}
                     </button>
                   )}
                 </div>
               </div>
-            </form >
-          </div >
-        </div >
+            </form>
+          </div>
+        </div>
       )}
-    </div >
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] card-enter">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 border-2 border-slate-100">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
+                <Trash2 className="w-8 h-8" />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold text-slate-800">Confirm Delete</h3>
+                <p className="text-slate-600">
+                  Are you sure you want to delete <span className="font-bold text-slate-800">"{deleteTarget?.name}"</span>?
+                  This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="flex gap-3 w-full pt-4">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 px-4 py-2 border-2 border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl font-semibold shadow-lg hover:bg-red-600 transition-all flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
