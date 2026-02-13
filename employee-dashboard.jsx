@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Building2, UserCheck, Search, Plus, Pencil, Trash2, X, Menu, ChevronLeft, ChevronRight, Eye, Maximize2, Minimize2 } from 'lucide-react';
+import { Users, Building2, UserCheck, Search, Plus, Pencil, Trash2, X, Menu, ChevronLeft, ChevronRight, Eye, Maximize2, Minimize2, Camera, User } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 const SignaturePad = ({ value, onChange, disabled = false }) => {
@@ -111,6 +111,7 @@ const SignaturePad = ({ value, onChange, disabled = false }) => {
 };
 
 const INITIAL_FORM_DATA = {
+  profilePicture: null,
   employeeIdNumber: '',
   firstName: '',
   middleName: '',
@@ -239,13 +240,17 @@ const INITIAL_FORM_DATA = {
 };
 
 const EmployeeDashboard = () => {
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState(() => {
+    return localStorage.getItem('edp_active_view') || 'dashboard';
+  });
   const [showModal, setShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [employees, setEmployees] = useState([]);
 
   const [currentTablePage, setCurrentTablePage] = useState(1);
+  const [expandedImage, setExpandedImage] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const itemsPerPage = 5;
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -274,7 +279,7 @@ const EmployeeDashboard = () => {
   const totalEmployees = employees.length;
   const activeEmployees = employees.filter(emp => emp.status === 'Active').length;
   const departments = [...new Set(employees.map(emp => emp.hired_dept || emp.department))].length;
-  const uniquePositions = [...new Set(employees.map(emp => emp.hired_position || emp.position))].filter(Boolean);
+  const uniquePositions = [...new Set(employees.map(emp => emp.hired_position || emp.position))].filter(Boolean).sort((a, b) => a.localeCompare(b));
 
   const filteredEmployees = employees.filter(emp => {
     const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -295,6 +300,10 @@ const EmployeeDashboard = () => {
     setCurrentTablePage(1);
   }, [searchQuery, selectedPosition]);
 
+  useEffect(() => {
+    localStorage.setItem('edp_active_view', currentPage);
+  }, [currentPage]);
+
   // Fetch employees and activity logs from Supabase on mount
   useEffect(() => {
     fetchEmployees();
@@ -314,6 +323,22 @@ const EmployeeDashboard = () => {
   }, []);
 
   const fetchActivityLogs = async () => {
+    // Check if Supabase is configured
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const isConfigured = supabaseUrl && supabaseKey && !supabaseUrl.includes('your-project-url') && !supabaseKey.includes('your-anon-key');
+
+    // Load from localStorage first regardless of mode (Local-First/Caching)
+    const localLogs = localStorage.getItem('edp_activity_logs');
+    if (localLogs) {
+      setRecentActivity(JSON.parse(localLogs));
+    }
+
+    if (!isConfigured) {
+      console.log('Supabase not configured. Using local activity logs.');
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('activity_logs')
@@ -322,17 +347,62 @@ const EmployeeDashboard = () => {
         .limit(5);
 
       if (error) throw error;
-      if (data) setRecentActivity(data);
+      if (data && data.length > 0) {
+        setRecentActivity(data);
+        // Sync cache
+        localStorage.setItem('edp_activity_logs', JSON.stringify(data));
+      }
     } catch (error) {
       console.error('Error fetching activity logs:', error.message);
     }
   };
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        alert('Image size exceeds 2MB. Please choose a smaller file.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, profilePicture: reader.result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const logActivity = async (type, title, description) => {
+    const newLog = {
+      id: Date.now(), // Local temporary ID
+      type,
+      title,
+      description,
+      created_at: new Date().toISOString()
+    };
+
+    // Update local state immediately for instant feedback
+    setRecentActivity(prev => [newLog, ...prev].slice(0, 5));
+
     try {
-      await supabase
-        .from('activity_logs')
-        .insert([{ type, title, description }]);
+      // Try to sync with Supabase if configured
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const isConfigured = supabaseUrl && supabaseKey && !supabaseUrl.includes('your-project-url') && !supabaseKey.includes('your-anon-key');
+
+      if (isConfigured) {
+        const { error } = await supabase
+          .from('activity_logs')
+          .insert([{ type, title, description }]);
+
+        if (error) console.error('Error syncing log to Supabase:', error.message);
+      }
+
+      // Always update localStorage as a robust local cache
+      const localLogs = localStorage.getItem('edp_activity_logs');
+      const logs = localLogs ? JSON.parse(localLogs) : [];
+      const updatedLogs = [newLog, ...logs].slice(0, 5);
+      localStorage.setItem('edp_activity_logs', JSON.stringify(updatedLogs));
     } catch (error) {
       console.error('Error logging activity:', error.message);
     }
@@ -340,6 +410,16 @@ const EmployeeDashboard = () => {
 
   const detectSignificantChanges = (oldData, newData) => {
     const changes = [];
+
+    // Basic Info
+    if (oldData.first_name !== newData.first_name || oldData.last_name !== newData.last_name) {
+      changes.push(`Name: ${oldData.first_name} ${oldData.last_name} → ${newData.first_name} ${newData.last_name}`);
+    }
+
+    // Employee ID
+    if (oldData.employee_id !== newData.employee_id) {
+      changes.push(`Employee ID: ${oldData.employee_id || 'None'} → ${newData.employee_id || 'None'}`);
+    }
 
     if (oldData.hired_position !== newData.hired_position) {
       changes.push(`Position: ${oldData.hired_position || 'None'} → ${newData.hired_position || 'None'}`);
@@ -353,8 +433,22 @@ const EmployeeDashboard = () => {
     if (oldData.contact_number !== newData.contact_number) {
       changes.push(`Contact: ${oldData.contact_number || 'None'} → ${newData.contact_number || 'None'}`);
     }
+    if (oldData.email !== newData.email) {
+      changes.push(`Email: ${oldData.email || 'None'} → ${newData.email || 'None'}`);
+    }
     if (oldData.salary_wage !== newData.salary_wage) {
       changes.push(`Salary updated`);
+    }
+
+    // Approvals (Step 6)
+    if (oldData.approved_hr_manager !== newData.approved_hr_manager) {
+      changes.push(`HR Approval: ${oldData.approved_hr_manager || 'None'} → ${newData.approved_hr_manager || 'None'}`);
+    }
+    if (oldData.approved_general_manager !== newData.approved_general_manager) {
+      changes.push(`GM Approval: ${oldData.approved_general_manager || 'None'} → ${newData.approved_general_manager || 'None'}`);
+    }
+    if (oldData.approved_asst_manager !== newData.approved_asst_manager) {
+      changes.push(`Asst Manager Approval: ${oldData.approved_asst_manager || 'None'} → ${newData.approved_asst_manager || 'None'}`);
     }
 
     return changes;
@@ -534,39 +628,15 @@ const EmployeeDashboard = () => {
       return;
     }
 
+    setIsProcessing(true);
     // Check if Supabase is configured
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     const useLocalMode = !supabaseUrl || !supabaseKey || supabaseUrl.includes('your-project-url') || supabaseKey.includes('your-anon-key');
 
-    if (useLocalMode) {
-      // Local mode - use state only
-      if (isEditing) {
-        setEmployees(employees.map(emp =>
-          emp.id === editEmployeeId
-            ? { ...emp, ...formData, name: `${formData.firstName} ${formData.lastName}` }
-            : emp
-        ));
-      } else {
-        const newEmployee = {
-          id: `EMP${String(employees.length + 1).padStart(3, '0')}`,
-          name: `${formData.firstName} ${formData.lastName}`,
-          ...formData
-        };
-        setEmployees([...employees, newEmployee]);
-      }
-
-      setShowModal(false);
-      setCurrentStep(1);
-      setIsEditing(false);
-      setIsViewOnly(false);
-      setEditEmployeeId(null);
-      setFormData(INITIAL_FORM_DATA);
-      return;
-    }
-
     try {
-      // Prepare main employee data
+
+      // Prepare main employee data (moved up so it's available for logging/state in all modes)
       const employeeData = {
         employee_id: formData.employeeIdNumber ? `EDP NO.${formData.employeeIdNumber}` : null,
         first_name: formData.firstName || '',
@@ -667,122 +737,155 @@ const EmployeeDashboard = () => {
         ppe_full_body_harness: formData.ppeFullBodyHarness || false,
         approved_hr_manager: formData.approvedHrManager || '',
         approved_general_manager: formData.approvedGeneralManager || '',
-        approved_asst_manager: formData.approvedAsstManager || ''
+        approved_asst_manager: formData.approvedAsstManager || '',
+        profile_picture: formData.profilePicture || null
       };
 
-      let employeeId;
+      if (useLocalMode) {
+        // Local mode - use state only
+        if (isEditing) {
+          setEmployees(employees.map(emp =>
+            emp.id === editEmployeeId
+              ? { ...emp, ...formData, name: `${formData.firstName} ${formData.lastName}` }
+              : emp
+          ));
 
-      if (isEditing && editEmployeeId) {
-        // Update existing employee
-        const { error } = await supabase
-          .from('employees')
-          .update(employeeData)
-          .eq('id', editEmployeeId);
+          // Log updated employee for local mode
+          const changes = originalEmployeeData ? detectSignificantChanges(originalEmployeeData, employeeData) : [];
+          const changeDescription = changes.length > 0
+            ? `${formData.lastName}, ${formData.firstName}: ${changes.join(', ')}`
+            : `${formData.lastName}, ${formData.firstName}'s information was updated`;
 
-        if (error) throw error;
-        employeeId = editEmployeeId;
+          logActivity('update', 'Employee information updated', changeDescription);
+          setOriginalEmployeeData(null);
+        } else {
+          const newEmployee = {
+            id: `EMP${String(employees.length + 1).padStart(3, '0')}`,
+            name: `${formData.firstName} ${formData.lastName}`,
+            ...formData
+          };
+          setEmployees([...employees, newEmployee]);
 
-        // Log updated employee with detailed changes
-        const changes = originalEmployeeData ? detectSignificantChanges(originalEmployeeData, employeeData) : [];
-        const changeDescription = changes.length > 0
-          ? `${formData.lastName}, ${formData.firstName}: ${changes.join(', ')}`
-          : `${formData.lastName}, ${formData.firstName}'s information was updated`;
-
-        await logActivity('update', 'Employee information updated', changeDescription);
-        setOriginalEmployeeData(null);
-
-        // Delete existing related records
-        await supabase.from('employment_history').delete().eq('employee_id', employeeId);
-        await supabase.from('education').delete().eq('employee_id', employeeId);
-        await supabase.from('professional_references').delete().eq('employee_id', employeeId);
+          // Log new employee for local mode
+          logActivity('new', 'New employee added', `${formData.lastName}, ${formData.firstName} joined ${formData.hiredDept || formData.department || 'the team'}`);
+        }
       } else {
-        // Insert new employee
-        const { data, error } = await supabase
-          .from('employees')
-          .insert([employeeData])
-          .select()
-          .single();
+        // Supabase mode
+        let employeeId;
 
-        if (error) throw error;
-        employeeId = data.id;
+        if (isEditing && editEmployeeId) {
+          // Update existing employee
+          const { error } = await supabase
+            .from('employees')
+            .update(employeeData)
+            .eq('id', editEmployeeId);
 
-        // Log new employee
-        await logActivity('new', 'New employee added', `${formData.lastName}, ${formData.firstName} joined ${formData.hiredDept || formData.department || 'the team'}`);
-      }
+          if (error) throw error;
+          employeeId = editEmployeeId;
 
-      // Insert employment history - only non-empty rows
-      if (formData.employmentHistory && formData.employmentHistory.length > 0) {
-        const historyRecords = formData.employmentHistory
-          .filter(emp => emp.nameAddress1 || emp.nameAddress2 || emp.nameAddress3 || emp.posSkills1)
-          .map((emp, index) => ({
-            employee_id: employeeId,
-            name_address1: emp.nameAddress1 || '',
-            name_address2: emp.nameAddress2 || '',
-            name_address3: emp.nameAddress3 || '',
-            pay: emp.pay || '',
-            per: emp.per || '',
-            pos_skills1: emp.posSkills1 || '',
-            pos_skills2: emp.posSkills2 || '',
-            pos_skills3: emp.posSkills3 || '',
-            supervisor: emp.supervisor || '',
-            contact_no: emp.contactNo || '',
-            start_date: emp.startDate || null,
-            end_date: emp.endDate || null,
-            reason_leaving1: emp.reasonLeaving1 || '',
-            reason_leaving2: emp.reasonLeaving2 || '',
-            reason_leaving3: emp.reasonLeaving3 || '',
-            display_order: index
-          }));
+          // Log updated employee with detailed changes
+          const changes = originalEmployeeData ? detectSignificantChanges(originalEmployeeData, employeeData) : [];
+          const changeDescription = changes.length > 0
+            ? `${formData.lastName}, ${formData.firstName}: ${changes.join(', ')}`
+            : `${formData.lastName}, ${formData.firstName}'s information was updated`;
 
-        if (historyRecords.length > 0) {
-          const { error: histError } = await supabase.from('employment_history').insert(historyRecords);
-          if (histError) console.error('Error inserting employment history:', histError);
+          await logActivity('update', 'Employee information updated', changeDescription);
+          setOriginalEmployeeData(null);
+
+          // Delete existing related records
+          await supabase.from('employment_history').delete().eq('employee_id', employeeId);
+          await supabase.from('education').delete().eq('employee_id', employeeId);
+          await supabase.from('professional_references').delete().eq('employee_id', employeeId);
+        } else {
+          // Insert new employee
+          const { data, error } = await supabase
+            .from('employees')
+            .insert([employeeData])
+            .select()
+            .single();
+
+          if (error) throw error;
+          employeeId = data.id;
+
+          // Log new employee
+          await logActivity('new', 'New employee added', `${formData.lastName}, ${formData.firstName} joined ${formData.hiredDept || formData.department || 'the team'}`);
         }
-      }
 
-      // Insert education - only non-empty rows
-      if (formData.education && formData.education.length > 0) {
-        const educationRecords = formData.education
-          .filter(edu => edu.institution || edu.degree)
-          .map(edu => ({
-            employee_id: employeeId,
-            level: edu.level,
-            institution: edu.institution || '',
-            years: edu.years || '',
-            field: edu.field || '',
-            degree: edu.degree || ''
-          }));
+        // Insert employment history - only non-empty rows
+        if (formData.employmentHistory && formData.employmentHistory.length > 0) {
+          const historyRecords = formData.employmentHistory
+            .filter(emp => emp.nameAddress1 || emp.nameAddress2 || emp.nameAddress3 || emp.posSkills1)
+            .map((emp, index) => ({
+              employee_id: employeeId,
+              name_address1: emp.nameAddress1 || '',
+              name_address2: emp.nameAddress2 || '',
+              name_address3: emp.nameAddress3 || '',
+              pay: emp.pay || '',
+              per: emp.per || '',
+              pos_skills1: emp.posSkills1 || '',
+              pos_skills2: emp.posSkills2 || '',
+              pos_skills3: emp.posSkills3 || '',
+              supervisor: emp.supervisor || '',
+              contact_no: emp.contactNo || '',
+              start_date: emp.startDate || null,
+              end_date: emp.endDate || null,
+              reason_leaving1: emp.reasonLeaving1 || '',
+              reason_leaving2: emp.reasonLeaving2 || '',
+              reason_leaving3: emp.reasonLeaving3 || '',
+              display_order: index
+            }));
 
-        if (educationRecords.length > 0) {
-          const { error: eduError } = await supabase.from('education').insert(educationRecords);
-          if (eduError) console.error('Error inserting education:', eduError);
+          if (historyRecords.length > 0) {
+            const { error: histError } = await supabase.from('employment_history').insert(historyRecords);
+            if (histError) console.error('Error inserting employment history:', histError);
+          }
         }
-      }
 
-      // Insert references - only non-empty rows
-      if (formData.references && formData.references.length > 0) {
-        const referenceRecords = formData.references
-          .filter(ref => ref.firstName || ref.lastName || ref.telephone)
-          .map(ref => ({
-            employee_id: employeeId,
-            last_name: ref.lastName || '',
-            first_name: ref.firstName || '',
-            middle_name: ref.middleName || '',
-            address: ref.address || '',
-            telephone: ref.telephone || '',
-            occupation: ref.occupation || '',
-            years_known: ref.yearsKnown || ''
-          }));
+        // Insert education - only non-empty rows
+        if (formData.education && formData.education.length > 0) {
+          const educationRecords = formData.education
+            .filter(edu => edu.institution || edu.degree)
+            .map(edu => ({
+              employee_id: employeeId,
+              level: edu.level,
+              institution: edu.institution || '',
+              years: edu.years || '',
+              field: edu.field || '',
+              degree: edu.degree || ''
+            }));
 
-        if (referenceRecords.length > 0) {
-          const { error: refError } = await supabase.from('professional_references').insert(referenceRecords);
-          if (refError) console.error('Error inserting professional references:', refError);
+          if (educationRecords.length > 0) {
+            const { error: eduError } = await supabase.from('education').insert(educationRecords);
+            if (eduError) console.error('Error inserting education:', eduError);
+          }
         }
+
+        // Insert references - only non-empty rows
+        if (formData.references && formData.references.length > 0) {
+          const referenceRecords = formData.references
+            .filter(ref => ref.firstName || ref.lastName || ref.telephone)
+            .map(ref => ({
+              employee_id: employeeId,
+              last_name: ref.lastName || '',
+              first_name: ref.firstName || '',
+              middle_name: ref.middleName || '',
+              address: ref.address || '',
+              telephone: ref.telephone || '',
+              occupation: ref.occupation || '',
+              years_known: ref.yearsKnown || ''
+            }));
+
+          if (referenceRecords.length > 0) {
+            const { error: refError } = await supabase.from('professional_references').insert(referenceRecords);
+            if (refError) console.error('Error inserting professional references:', refError);
+          }
+        }
+
+        // Refresh employee list
+        await fetchEmployees();
       }
 
-      // Refresh employee list
-      await fetchEmployees();
-
+      // Common cleanup for both modes
       setShowModal(false);
       setCurrentStep(1);
       setIsEditing(false);
@@ -792,6 +895,8 @@ const EmployeeDashboard = () => {
     } catch (error) {
       console.error('Detailed Error saving employee:', error);
       alert(`Failed to save employee: ${error.message || 'Unknown error'}. Please check your Supabase connection and schema.`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -817,6 +922,7 @@ const EmployeeDashboard = () => {
     let baseData = {
       ...INITIAL_FORM_DATA,
       ...employee,
+      profilePicture: employee.profile_picture || null,
       employeeIdNumber: employee.employee_id ? employee.employee_id.replace('EDP NO.', '').replace('EDP.', '') : '',
       firstName: firstName,
       lastName: lastName,
@@ -1065,6 +1171,10 @@ const EmployeeDashboard = () => {
       if (useLocalMode) {
         // Local mode - use state only
         setEmployees(employees.filter(emp => emp.id !== deleteTarget.id));
+
+        // Log deleted employee for local mode
+        logActivity('delete', 'Employee deleted', `${deleteTarget.last_name}, ${deleteTarget.first_name} was removed from the system`);
+
         setShowDeleteModal(false);
         setDeleteTarget(null);
         return;
@@ -1481,9 +1591,10 @@ const EmployeeDashboard = () => {
                       <thead>
                         <tr className="bg-gradient-to-r from-slate-50 to-indigo-50 border-b-2 border-indigo-100">
                           <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Emp. ID</th>
+                          <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Profile</th>
                           <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Name</th>
                           <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Position</th>
-                          <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Department</th>
+                          <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Date Hired</th>
                           <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Birthdate</th>
                           <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Sex</th>
                           <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Age</th>
@@ -1491,6 +1602,7 @@ const EmployeeDashboard = () => {
                             <>
                               <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Address</th>
                               <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Contact</th>
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Department</th>
                               <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
                             </>
                           )}
@@ -1504,13 +1616,27 @@ const EmployeeDashboard = () => {
                               <span className="badge font-bold text-slate-700 text-[13px]">{employee.employee_id || '(No ID)'}</span>
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap">
+                              <div
+                                className="w-20 h-20 rounded-[5px] bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-indigo-400 transition-all shadow-sm"
+                                onClick={() => employee.profile_picture && setExpandedImage(employee.profile_picture)}
+                              >
+                                {employee.profile_picture ? (
+                                  <img src={employee.profile_picture} className="w-full h-full object-cover" alt="" />
+                                ) : (
+                                  <User className="w-10 h-10 text-slate-400" />
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-4 whitespace-nowrap">
                               <span className="font-semibold text-slate-800 text-[13px]">{employee.name}</span>
                             </td>
                             <td className="px-3 py-4">
                               <span className="text-slate-600 text-[13px]">{employee.hired_position || employee.position || '-'}</span>
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap">
-                              <span className="text-slate-600 text-[13px]">{employee.hired_dept || employee.department || '-'}</span>
+                              <span className="text-slate-600 text-[13px]">
+                                {employee.reporting_date ? new Date(employee.reporting_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                              </span>
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap">
                               <span className="text-slate-500 text-[13px]">
@@ -1526,12 +1652,18 @@ const EmployeeDashboard = () => {
                             {showAllColumns && (
                               <>
                                 <td className="px-3 py-4 max-w-[150px] truncate">
-                                  <span className="text-slate-600 text-[13px]">
+                                  <span
+                                    className="text-slate-600 text-[13px] cursor-help"
+                                    title={`${employee.street ? employee.street + ', ' : ''}${employee.barangay ? employee.barangay + ', ' : ''}${employee.city ? employee.city + ', ' : ''}${employee.province || ''}`}
+                                  >
                                     {employee.city}{employee.city && employee.province ? ', ' : ''}{employee.province}
                                   </span>
                                 </td>
                                 <td className="px-3 py-4 whitespace-nowrap">
                                   <span className="text-slate-600 text-[13px] font-medium">{employee.contact_number || '-'}</span>
+                                </td>
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <span className="text-slate-600 text-[13px]">{employee.hired_dept || employee.department || '-'}</span>
                                 </td>
                                 <td className="px-3 py-4 whitespace-nowrap">
                                   <span className={`badge px-3 py-1 rounded-full text-[13px] ${employee.status === 'Active'
@@ -1577,9 +1709,19 @@ const EmployeeDashboard = () => {
                   <div className="lg:hidden divide-y divide-slate-100">
                     {currentItems.map((employee) => (
                       <div key={employee.id} className="p-6 hover:bg-slate-50 transition-all">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <span className="badge font-bold text-slate-600 block mb-1">{employee.id}</span>
+                        <div className="flex items-start gap-4 mb-4">
+                          <div
+                            className="w-20 h-20 rounded-[5px] bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0 cursor-pointer shadow-sm"
+                            onClick={() => employee.profile_picture && setExpandedImage(employee.profile_picture)}
+                          >
+                            {employee.profile_picture ? (
+                              <img src={employee.profile_picture} className="w-full h-full object-cover" alt="" />
+                            ) : (
+                              <User className="w-10 h-10 text-slate-400" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <span className="badge font-bold text-slate-600 block mb-1">{employee.employee_id || employee.id}</span>
                             <h3 className="font-bold text-lg text-slate-800">{employee.name}</h3>
                           </div>
                           <span className={`badge px-3 py-1 rounded-full ${employee.status === 'Active'
@@ -1590,8 +1732,11 @@ const EmployeeDashboard = () => {
                           </span>
                         </div>
                         <div className="space-y-2 mb-4">
-                          <p className="text-slate-600"><span className="font-semibold">Position:</span> {employee.position}</p>
-                          <p className="text-slate-600"><span className="font-semibold">Department:</span> {employee.department}</p>
+                          <p className="text-slate-600"><span className="font-semibold">Position:</span> {employee.hired_position || employee.position || '-'}</p>
+                          <p className="text-slate-600">
+                            <span className="font-semibold">Date Hired:</span> {employee.reporting_date ? new Date(employee.reporting_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                          </p>
+                          <p className="text-slate-600"><span className="font-semibold">Department:</span> {employee.hired_dept || employee.department || '-'}</p>
                           <p className="text-slate-500 text-sm">{employee.email}</p>
                         </div>
                         <div className="flex gap-2">
@@ -1709,23 +1854,53 @@ const EmployeeDashboard = () => {
                 <div className="space-y-6 card-enter">
                   {/* Application Metadata */}
                   <div className="space-y-4 mb-8 pb-6 border-b border-slate-100">
-                    {/* Employee ID - Full Width Row */}
-                    <div className="flex items-center gap-3 justify-center">
-                      <label className="text-[13px] font-bold text-slate-700 whitespace-nowrap">Employee ID:</label>
-                      <div className="flex items-center border-b-2 border-slate-300 focus-within:border-indigo-600 transition-colors h-8">
-                        <span className="text-[13px] font-medium text-slate-800 pl-1 leading-none">EDP NO.</span>
-                        <input
-                          type="text"
-                          value={formData.employeeIdNumber}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                            setFormData({ ...formData, employeeIdNumber: value });
-                          }}
-                          className="w-14 pl-1 focus:outline-none bg-transparent text-[13px] font-medium text-slate-800 leading-none h-full"
-                          disabled={isViewOnly}
-                          placeholder="0000"
-                          maxLength="4"
-                        />
+                    {/* Row with Profile and Employee ID - justify-between */}
+                    <div className="flex items-center justify-between">
+                      {/* Profile Section */}
+                      <div className="flex items-center gap-4">
+                        <label className="text-[13px] font-bold text-slate-700">Profile:</label>
+                        <div
+                          className="relative w-28 h-28 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[5px] overflow-hidden hover:border-indigo-400 group cursor-pointer transition-all flex items-center justify-center"
+                          onClick={() => !isViewOnly && document.getElementById('profile-upload').click()}
+                        >
+                          {formData.profilePicture ? (
+                            <img src={formData.profilePicture} className="w-full h-full object-cover" alt="Profile" />
+                          ) : (
+                            <div className="text-slate-400 group-hover:text-indigo-500 transition-colors text-center">
+                              <Camera className="w-8 h-8 mx-auto" strokeWidth={1.5} />
+                              <span className="text-[10px] block mt-1 uppercase font-bold tracking-wider">Upload</span>
+                            </div>
+                          )}
+                          {!isViewOnly && (
+                            <input
+                              id="profile-upload"
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={handleImageUpload}
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Employee ID Section */}
+                      <div className="flex items-center gap-3">
+                        <label className="text-[13px] font-bold text-slate-700 whitespace-nowrap">Employee ID:</label>
+                        <div className="flex items-center border-b-2 border-slate-300 focus-within:border-indigo-600 transition-colors h-8">
+                          <span className="text-[13px] font-medium text-slate-800 pl-1 leading-none">EDP NO.</span>
+                          <input
+                            type="text"
+                            value={formData.employeeIdNumber}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                              setFormData({ ...formData, employeeIdNumber: value });
+                            }}
+                            className="w-14 pl-1 focus:outline-none bg-transparent text-[13px] font-medium text-slate-800 leading-none h-full"
+                            disabled={isViewOnly}
+                            placeholder="0000"
+                            maxLength="4"
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -3497,11 +3672,19 @@ const EmployeeDashboard = () => {
                   {!isViewOnly && (
                     <button
                       type="submit"
-                      className="btn-primary px-8 py-3 text-white rounded-xl font-semibold shadow-lg"
+                      disabled={isProcessing}
+                      className={`btn-primary px-8 py-3 text-white rounded-xl font-semibold shadow-lg transition-all ${isProcessing ? 'opacity-70 cursor-not-allowed bg-slate-400' : ''}`}
                     >
-                      {currentStep === 6
-                        ? (isEditing ? 'Update Employee' : 'Save Employee')
-                        : 'Next'}
+                      {isProcessing ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Processing...
+                        </div>
+                      ) : (
+                        currentStep === 6
+                          ? (isEditing ? 'Update Employee' : 'Save Employee')
+                          : 'Next'
+                      )}
                     </button>
                   )}
                 </div>
@@ -3544,6 +3727,34 @@ const EmployeeDashboard = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Profile Picture Expansion Modal */}
+      {expandedImage && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300 animate-in fade-in zoom-in"
+          onClick={() => setExpandedImage(null)}
+        >
+          <button
+            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpandedImage(null);
+            }}
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          <div
+            className="relative max-w-3xl w-full aspect-square bg-slate-800 rounded-[5px] overflow-hidden shadow-2xl border-4 border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={expandedImage}
+              className="w-full h-full object-contain"
+              alt="Expanded Profile"
+            />
           </div>
         </div>
       )}
