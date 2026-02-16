@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { User, Printer } from 'lucide-react';
 
 const PrintableProfileView = ({ employee, onClose }) => {
@@ -33,13 +34,49 @@ const PrintableProfileView = ({ employee, onClose }) => {
         </div>
     );
 
-    return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] overflow-y-auto print:bg-white print:static print:h-auto print:overflow-visible flex flex-col items-center p-4">
+    return createPortal(
+        <div className="printable-area fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] overflow-y-auto print:bg-white print:static print:h-auto print:overflow-visible flex flex-col items-center p-4">
 
             {/* Print specific styles */}
             <style>
                 {`
         @media print {
+          html, body {
+            height: auto !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          body > *:not(.printable-area) {
+            display: none !important;
+          }
+          .printable-area {
+            position: relative !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            z-index: 9999 !important;
+            display: block !important;
+            overflow: visible !important;
+          }
+          /* Ensure page breaks work and handle layout */
+          .print-page {
+            box-shadow: none !important;
+            margin: 0 !important;
+            page-break-after: always;
+            break-after: page;
+            width: 210mm !important;
+            max-width: none !important;
+            height: auto !important;
+            min-height: 296mm !important;
+            padding: 48px !important; /* Matches p-12 (3rem) explicitly */
+            overflow: hidden !important; /* Prevent tiny overflows from creating blank pages */
+          }
+          .print-page:last-child {
+            page-break-after: auto;
+            break-after: auto;
+          }
           @page {
             size: A4;
             margin: 0;
@@ -51,16 +88,6 @@ const PrintableProfileView = ({ employee, onClose }) => {
           }
           .no-print {
             display: none !important;
-          }
-          .print-page {
-            box-shadow: none !important;
-            margin: 0 !important;
-            page-break-after: always;
-            width: 100% !important;
-            max-width: none !important;
-            height: auto !important;
-            min-height: 11in !important;
-            padding: 0.2in 0.5in !important
           }
           /* Hide scrollbars in print */
           ::-webkit-scrollbar {
@@ -88,7 +115,7 @@ const PrintableProfileView = ({ employee, onClose }) => {
             </div>
 
             {/* ---------------- PAGE 1 ---------------- */}
-            <div className="print-page bg-white w-[210mm] min-h-[297mm] shadow-2xl mx-auto mb-8 flex flex-col relative text-black p-12 text-xs font-sans">
+            <div className="print-page bg-white w-[210mm] min-h-[290mm] shadow-2xl mx-auto mb-8 flex flex-col relative text-black p-12 text-xs font-sans">
 
                 {/* Header */}
                 {/* Header */}
@@ -155,6 +182,7 @@ const PrintableProfileView = ({ employee, onClose }) => {
                 {/* Personal Details */}
                 <div className="mb-4 text-[11px]">
                     <div className="flex mb-1 items-end">
+                        <span className="font-bold w-12 mr-1">Name:</span>
                         <span className="font-bold w-12 mr-1">Name:</span>
                         <div className="flex-1 border-b border-black flex justify-between px-2">
                             <span className="text-center flex-1">{employee.lastName || ''}</span>
@@ -367,7 +395,7 @@ const PrintableProfileView = ({ employee, onClose }) => {
             </div>
 
             {/* ---------------- PAGE 2 ---------------- */}
-            <div className="print-page bg-white w-[210mm] min-h-[297mm] shadow-2xl mx-auto mb-8 flex flex-col relative text-black p-12 text-xs font-sans">
+            <div className="print-page bg-white w-[210mm] min-h-[290mm] shadow-2xl mx-auto mb-8 flex flex-col relative text-black p-12 text-xs font-sans">
 
                 <div className="mb-4 text-[10px]">
                     <div className="pt-1">
@@ -554,7 +582,7 @@ const PrintableProfileView = ({ employee, onClose }) => {
             </div>
 
             {/* ---------------- PAGE 3 ---------------- */}
-            <div className="print-page bg-white w-[210mm] min-h-[297mm] shadow-2xl mx-auto mb-8 flex flex-col relative text-black p-12 text-xs font-sans">
+            <div className="print-page bg-white w-[210mm] min-h-[290mm] shadow-2xl mx-auto mb-8 flex flex-col relative text-black p-12 text-xs font-sans">
 
                 {/* ADMIN SECTION */}
                 <div className="mb-0 text-[10px]">
@@ -837,7 +865,8 @@ const PrintableProfileView = ({ employee, onClose }) => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
