@@ -40,7 +40,10 @@ const App = () => {
             {!currentUser ? (
                 <Login onLogin={handleLogin} />
             ) : (
-                <EmployeeDashboard user={currentUser} onLogout={handleLogout} />
+                <EmployeeDashboard
+                    user={currentUser}
+                    onLogout={handleLogout}
+                />
             )}
         </div>
     );

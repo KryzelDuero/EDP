@@ -10,6 +10,8 @@ const Login = ({ onLogin }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+
+
     const hashPassword = async (string) => {
         const utf8 = new TextEncoder().encode(string);
         const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
@@ -24,23 +26,25 @@ const Login = ({ onLogin }) => {
         setError(null);
 
         try {
-            const hashedPassword = await hashPassword(password);
+            // Fetch user by username first
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('username', username)
-                .eq('passwordhash', hashedPassword)
                 .single();
 
-            if (error) {
-                if (error.code === 'PGRST116') {
-                    throw new Error('Invalid username or password');
-                }
-                throw error;
+            if (error || !data) {
+                throw new Error('Invalid username or password');
             }
 
-            if (data) {
+            // Verify password (check both hash and plain text)
+            const hashedPassword = await hashPassword(password);
+            const isMatch = data.passwordhash === hashedPassword || data.passwordhash === password;
+
+            if (isMatch) {
                 onLogin(data);
+            } else {
+                throw new Error('Invalid username or password');
             }
         } catch (err) {
             setError(err.message);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Building2, UserCheck, Search, Plus, Pencil, Trash2, X, Menu, ChevronLeft, ChevronRight, Eye, Maximize2, Minimize2, Camera, User, Upload, LogOut, ClipboardList } from 'lucide-react';
+import { Users, Building2, UserCheck, Search, Plus, Pencil, Trash2, X, Menu, ChevronLeft, ChevronRight, Eye, EyeOff, Maximize2, Minimize2, Camera, User, Upload, LogOut, ClipboardList, Settings } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import PrintableProfileView from './PrintableProfileView';
 import Inventory from './Inventory';
@@ -115,7 +115,7 @@ const SignaturePad = ({ value, onChange, disabled = false }) => {
   };
 
   return (
-    <div className="relative bg-slate-50 border-2 border-slate-200 rounded-xl p-2">
+    <div className="relative bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-200 dark:border-slate-800 rounded-xl p-2">
       <canvas
         ref={canvasRef}
         onMouseDown={startDrawing}
@@ -139,7 +139,7 @@ const SignaturePad = ({ value, onChange, disabled = false }) => {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="px-2 py-1 bg-white hover:bg-indigo-50 text-indigo-500 hover:text-indigo-600 text-[10px] uppercase font-bold rounded border border-slate-200 transition-colors flex items-center gap-1"
+            className="px-2 py-1 bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 text-[10px] uppercase font-bold rounded border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1"
           >
             <Upload className="w-3 h-3" />
             Upload
@@ -147,7 +147,7 @@ const SignaturePad = ({ value, onChange, disabled = false }) => {
           <button
             type="button"
             onClick={clear}
-            className="px-2 py-1 bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 text-[10px] uppercase font-bold rounded border border-slate-200 transition-colors"
+            className="px-2 py-1 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 text-[10px] uppercase font-bold rounded border border-slate-200 dark:border-slate-700 transition-colors"
           >
             Clear
           </button>
@@ -327,6 +327,15 @@ const EmployeeDashboard = ({ user, onLogout }) => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwMessage, setPwMessage] = useState(null);
+  const [showPwCurrent, setShowPwCurrent] = useState(false);
+  const [showPwNew, setShowPwNew] = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
+  const [showPwConfirmModal, setShowPwConfirmModal] = useState(false);
 
   const totalEmployees = employees.length;
   const activeEmployees = employees.filter(emp => emp.status === 'Active').length;
@@ -355,6 +364,76 @@ const EmployeeDashboard = ({ user, onLogout }) => {
   useEffect(() => {
     localStorage.setItem('edp_active_view', currentPage);
   }, [currentPage]);
+
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
+    setPwMessage(null);
+    if (pwNew !== pwConfirm) {
+      setPwMessage({ type: 'error', text: 'New passwords do not match.' });
+      return;
+    }
+    if (pwNew.length < 4) {
+      setPwMessage({ type: 'error', text: 'Password must be at least 4 characters.' });
+      return;
+    }
+    setShowPwConfirmModal(true);
+  };
+
+  // Utility to hash password
+  const hashPassword = async (string) => {
+    const utf8 = new TextEncoder().encode(string);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+  };
+
+  const handlePasswordChange = async () => {
+    setShowPwConfirmModal(false);
+    setPwLoading(true);
+    try {
+      // Verify current password (check both plain and hashed to be safe)
+      const hashedCurrent = await hashPassword(pwCurrent);
+      const { data: profile, error: verifyError } = await supabase
+        .from('profiles')
+        .select('id, passwordhash')
+        .eq('username', user.username)
+        .single();
+
+      if (verifyError || !profile) {
+        setPwMessage({ type: 'error', text: 'Current password is incorrect.' });
+        return;
+      }
+
+      // Check if current password matches (support both legacy plain and hashed)
+      const isMatch = profile.passwordhash === pwCurrent || profile.passwordhash === hashedCurrent;
+      if (!isMatch) {
+        setPwMessage({ type: 'error', text: 'Current password is incorrect.' });
+        return;
+      }
+
+      // Hash new password before updating
+      const hashedNew = await hashPassword(pwNew);
+      const { data: updatedData, error: updateError } = await supabase
+        .from('profiles')
+        .update({ passwordhash: hashedNew })
+        .eq('id', profile.id)
+        .select();
+
+      if (updateError) throw updateError;
+
+      if (!updatedData || updatedData.length === 0) {
+        throw new Error('Update failed. No changes were saved (check database permissions).');
+      }
+
+      setPwMessage({ type: 'success', text: 'Password updated successfully!' });
+      setPwCurrent(''); setPwNew(''); setPwConfirm('');
+    } catch (err) {
+      setPwMessage({ type: 'error', text: err.message || 'Failed to update password.' });
+    } finally {
+      setPwLoading(false);
+    }
+  };
 
   // Fetch employees and activity logs from Supabase on mount
   useEffect(() => {
@@ -1301,8 +1380,9 @@ const EmployeeDashboard = ({ user, onLogout }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <style>{`
+    <div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 transition-colors duration-500">
+        <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap');
         
         * {
@@ -1479,1259 +1559,525 @@ const EmployeeDashboard = ({ user, onLogout }) => {
         }
       `}</style>
 
-      <div className="flex min-h-screen">
-        {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-2xl transition-all duration-300 ease-in-out flex flex-col sticky top-0 h-screen z-10`}>
-          <div className="p-6 border-b border-slate-100">
-            <div className={`flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
-              {sidebarOpen && (
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg overflow-hidden shrink-0">
-                    <img src="/logo.jpg" alt="EDP Logo" className="w-full h-full object-cover" />
+        <div className="flex min-h-screen">
+          {/* Sidebar */}
+          <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-slate-900 shadow-2xl transition-all duration-300 ease-in-out flex flex-col sticky top-0 h-screen z-10 border-r border-slate-100 dark:border-slate-800`}>
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+              <div className={`flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
+                {sidebarOpen && (
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg overflow-hidden shrink-0">
+                      <img src="/logo.jpg" alt="EDP Logo" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex items-center justify-between flex-1 ml-3">
+                      <span className="font-bold text-xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent leading-tight">
+                        EDP Engineering Services
+                      </span>
+                      <button
+                        onClick={() => setSidebarOpen(false)}
+                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-2"
+                        title="Hide Sidebar"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between flex-1 ml-3">
-                    <span className="font-bold text-xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent leading-tight">
-                      EDP Engineering Services
-                    </span>
-                    <button
-                      onClick={() => setSidebarOpen(false)}
-                      className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-slate-600 ml-2"
-                      title="Hide Sidebar"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              )}
-              {!sidebarOpen && (
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                  title="Show Sidebar"
-                >
-                  <Menu className="w-5 h-5 text-slate-600" />
-                </button>
-              )}
+                )}
+                {!sidebarOpen && (
+                  <button
+                    onClick={() => setSidebarOpen(true)}
+                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                    title="Show Sidebar"
+                  >
+                    <Menu className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
 
-          <nav className="flex-1 p-4 space-y-2">
-            <button
-              onClick={() => setCurrentPage('dashboard')}
-              className={`sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentPage === 'dashboard'
-                ? 'active bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600'
-                : 'text-slate-600 hover:bg-slate-50'
-                }`}
-            >
-              <Building2 className={`w-5 h-5 ${sidebarOpen ? '' : 'mx-auto'}`} />
-              {sidebarOpen && <span className="font-semibold">Dashboard</span>}
-            </button>
+            <nav className="flex-1 p-4 space-y-2">
+              <button
+                onClick={() => setCurrentPage('dashboard')}
+                className={`sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentPage === 'dashboard'
+                  ? 'active bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+              >
+                <Building2 className={`w-5 h-5 ${sidebarOpen ? '' : 'mx-auto'}`} />
+                {sidebarOpen && <span className="font-semibold">Dashboard</span>}
+              </button>
 
-            <button
-              onClick={() => setCurrentPage('employees')}
-              className={`sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentPage === 'employees'
-                ? 'active bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600'
-                : 'text-slate-600 hover:bg-slate-50'
-                }`}
-            >
-              <Users className={`w-5 h-5 ${sidebarOpen ? '' : 'mx-auto'}`} />
-              {sidebarOpen && <span className="font-semibold">Employees</span>}
-            </button>
+              <button
+                onClick={() => setCurrentPage('employees')}
+                className={`sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentPage === 'employees'
+                  ? 'active bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+              >
+                <Users className={`w-5 h-5 ${sidebarOpen ? '' : 'mx-auto'}`} />
+                {sidebarOpen && <span className="font-semibold">Employees</span>}
+              </button>
 
-            <button
-              onClick={() => setCurrentPage('inventory')}
-              className={`sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentPage === 'inventory'
-                ? 'active bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600'
-                : 'text-slate-600 hover:bg-slate-50'
-                }`}
-            >
-              <ClipboardList className={`w-5 h-5 ${sidebarOpen ? '' : 'mx-auto'}`} />
-              {sidebarOpen && <span className="font-semibold">Inventory</span>}
-            </button>
-          </nav>
+              <button
+                onClick={() => setCurrentPage('inventory')}
+                className={`sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentPage === 'inventory'
+                  ? 'active bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+              >
+                <ClipboardList className={`w-5 h-5 ${sidebarOpen ? '' : 'mx-auto'}`} />
+                {sidebarOpen && <span className="font-semibold">Inventory</span>}
+              </button>
+            </nav>
 
-          <div className="p-4 border-t border-slate-100">
-            <button
-              onClick={() => setShowSignOutModal(true)}
-              className="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-red-600 hover:bg-red-50"
-            >
-              <LogOut className={`w-5 h-5 ${sidebarOpen ? '' : 'mx-auto'}`} />
-              {sidebarOpen && <span className="font-semibold">Logout</span>}
-            </button>
-          </div>
-        </aside>
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-1">
+              <button
+                onClick={() => setCurrentPage('settings')}
+                className={`sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentPage === 'settings'
+                  ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+              >
+                <Settings className={`w-5 h-5 ${sidebarOpen ? '' : 'mx-auto'}`} />
+                {sidebarOpen && <span className="font-semibold">Settings</span>}
+              </button>
+              <button
+                onClick={() => setShowSignOutModal(true)}
+                className="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+              >
+                <LogOut className={`w-5 h-5 ${sidebarOpen ? '' : 'mx-auto'}`} />
+                {sidebarOpen && <span className="font-semibold">Log out</span>}
+              </button>
+            </div>
+          </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto bg-slate-50/50 p-8">
-          {currentPage === 'inventory' ? (
-            <Inventory />
-          ) : (
-            <div className="max-w-[1400px] mx-auto space-y-8">
-              {currentPage === 'dashboard' && (
-                <div className="space-y-8">
-                  <div className="card-enter">
-                    <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-800 to-indigo-600 bg-clip-text text-transparent mb-2">
-                      Dashboard
-                    </h1>
-                    <p className="text-slate-500 text-lg">Welcome back! Here's your overview</p>
-                  </div>
+          {/* Main Content */}
+          <main className="flex-1 overflow-auto bg-slate-50/50 dark:bg-slate-950 p-8">
+            {currentPage === 'inventory' ? (
+              <Inventory />
+            ) : currentPage === 'settings' ? (
+              <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500">
+                <div>
+                  <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100 mb-1">Settings</h1>
+                  <p className="text-slate-500 dark:text-slate-400">Manage your account and preferences.</p>
+                </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="stat-card card-enter bg-white rounded-2xl p-8 shadow-xl hover-lift border border-slate-100" style={{ animationDelay: '0.1s' }}>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-slate-500 font-semibold mb-2 uppercase tracking-wider text-sm">Total Employees</p>
-                          <p className="text-5xl font-bold bg-gradient-to-br from-slate-800 to-indigo-600 bg-clip-text text-transparent">
-                            {totalEmployees}
-                          </p>
-                        </div>
-                        <div className="icon-wrapper w-14 h-14 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
-                          <Users className="w-7 h-7 text-white" />
-                        </div>
+                <div className="grid grid-cols-2 gap-6 items-start">
+                  {/* Section 1: Change Password */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+                    <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                      <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center">
+                        <Settings className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">Change Password</h2>
+                        <p className="text-xs text-slate-400">Update your login credentials</p>
                       </div>
                     </div>
-
-                    <div className="stat-card card-enter bg-white rounded-2xl p-8 shadow-xl hover-lift border border-slate-100" style={{ animationDelay: '0.2s' }}>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-slate-500 font-semibold mb-2 uppercase tracking-wider text-sm">Active Employees</p>
-                          <p className="text-5xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                            {activeEmployees}
-                          </p>
-                        </div>
-                        <div className="icon-wrapper w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg">
-                          <UserCheck className="w-7 h-7 text-white" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="stat-card card-enter bg-white rounded-2xl p-8 shadow-xl hover-lift border border-slate-100" style={{ animationDelay: '0.3s' }}>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-slate-500 font-semibold mb-2 uppercase tracking-wider text-sm">Departments</p>
-                          <p className="text-5xl font-bold bg-gradient-to-br from-orange-600 to-pink-600 bg-clip-text text-transparent">
-                            {departments}
-                          </p>
-                        </div>
-                        <div className="icon-wrapper w-14 h-14 bg-gradient-to-br from-orange-400 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
-                          <Building2 className="w-7 h-7 text-white" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="card-enter bg-white rounded-2xl p-8 shadow-xl border border-slate-100" style={{ animationDelay: '0.4s' }}>
-                    <h2 className="text-2xl font-bold text-slate-800 mb-6">Recent Activity</h2>
-                    <div className="space-y-4">
-                      {recentActivity.length > 0 ? (
-                        recentActivity.map((activity, index) => (
-                          <div key={activity.id || index} className="activity-item flex items-start gap-4 p-4 rounded-xl hover:bg-slate-50 transition-all">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${activity.type === 'new' ? 'bg-emerald-100' :
-                              activity.type === 'update' ? 'bg-blue-100' :
-                                activity.type === 'delete' ? 'bg-red-100' :
-                                  'bg-orange-100'
-                              }`}>
-                              {activity.type === 'new' && <UserCheck className="w-5 h-5 text-emerald-600" />}
-                              {activity.type === 'update' && <Pencil className="w-5 h-5 text-blue-600" />}
-                              {activity.type === 'delete' && <Trash2 className="w-5 h-5 text-red-600" />}
-                              {!['new', 'update', 'delete'].includes(activity.type) && <Users className="w-5 h-5 text-orange-600" />}
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-semibold text-slate-800">{activity.title}</p>
-                              <p className="text-slate-500 text-sm mt-1">{activity.description}</p>
-                            </div>
-                            <span className="text-slate-400 text-sm whitespace-nowrap">{formatRelativeTime(activity.created_at)}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-8">
-                          <p className="text-slate-400">No recent activity found.</p>
+                    <form onSubmit={handlePasswordSubmit} className="px-8 py-6 space-y-5">
+                      {pwMessage && (
+                        <div className={`px-4 py-3 rounded-xl text-sm font-medium ${pwMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'}`}>
+                          {pwMessage.text}
                         </div>
                       )}
-                    </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Current Password</label>
+                        <div className="relative">
+                          <input
+                            type={showPwCurrent ? 'text' : 'password'}
+                            required
+                            value={pwCurrent}
+                            onChange={e => { setPwCurrent(e.target.value); setPwMessage(null); }}
+                            className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                            placeholder="Enter current password"
+                          />
+                          <button type="button" onClick={() => setShowPwCurrent(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                            {showPwCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">New Password</label>
+                        <div className="relative">
+                          <input
+                            type={showPwNew ? 'text' : 'password'}
+                            required
+                            value={pwNew}
+                            onChange={e => { setPwNew(e.target.value); setPwMessage(null); }}
+                            className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                            placeholder="Enter new password"
+                          />
+                          <button type="button" onClick={() => setShowPwNew(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                            {showPwNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Confirm New Password</label>
+                        <div className="relative">
+                          <input
+                            type={showPwConfirm ? 'text' : 'password'}
+                            required
+                            value={pwConfirm}
+                            onChange={e => { setPwConfirm(e.target.value); setPwMessage(null); }}
+                            className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                            placeholder="Confirm new password"
+                          />
+                          <button type="button" onClick={() => setShowPwConfirm(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                            {showPwConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="pt-2">
+                        <button
+                          type="submit"
+                          disabled={pwLoading}
+                          className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-indigo-100"
+                        >
+                          {pwLoading ? (
+                            <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating...</>
+                          ) : 'Update Password'}
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                </div>
-              )}
 
-              {currentPage === 'employees' && (
-                <div className="space-y-6">
-                  <div className="flex flex-col gap-6">
-                    <div>
-                      <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-800 to-indigo-600 bg-clip-text text-transparent mb-2">
-                        Employees
+
+                </div>
+              </div>
+            ) : (
+              <div className="max-w-[1400px] mx-auto space-y-8">
+                {currentPage === 'dashboard' && (
+                  <div className="space-y-8">
+                    <div className="card-enter">
+                      <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-800 to-indigo-600 dark:from-slate-100 dark:to-indigo-400 bg-clip-text text-transparent mb-2">
+                        Dashboard
                       </h1>
-                      <p className="text-slate-500 text-lg">Manage your team members</p>
-                    </div>
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
-                      <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto flex-1">
-                        <div className="relative w-full md:w-56">
-                          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-                          <input
-                            type="text"
-                            placeholder="Search employees..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="search-input w-full pl-12 pr-4 py-3 bg-white rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-700 placeholder-slate-400"
-                          />
-                        </div>
-                        <div className="w-full md:w-56">
-                          <select
-                            value={selectedPosition}
-                            onChange={(e) => setSelectedPosition(e.target.value)}
-                            className="filter-select w-full px-4 py-3 bg-white rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-700"
-                          >
-                            <option value="">All Positions</option>
-                            {uniquePositions.map((position) => (
-                              <option key={position} value={position}>
-                                {position}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => setShowAllColumns(!showAllColumns)}
-                          className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 transition-all shadow-lg whitespace-nowrap"
-                        >
-                          {showAllColumns ? (
-                            <>
-                              <Minimize2 className="w-5 h-5" />
-                              Show less
-                            </>
-                          ) : (
-                            <>
-                              <Maximize2 className="w-5 h-5" />
-                              Show more
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={handleOpenAddModal}
-                          className="btn-primary flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-semibold shadow-lg whitespace-nowrap"
-                        >
-                          <Plus className="w-5 h-5" />
-                          Add Employee
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 flex flex-col">
-                    {/* Desktop Table */}
-                    <div className="hidden lg:block overflow-x-auto flex-1">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-gradient-to-r from-slate-50 to-indigo-50 border-b-2 border-indigo-100">
-                            <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Emp. ID</th>
-                            <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Profile</th>
-                            <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Last Name</th>
-                            <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">First Name</th>
-                            <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Middle Name</th>
-                            <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Gender</th>
-                            <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Birthdate</th>
-                            <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Age</th>
-
-                            {showAllColumns && (
-                              <>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Address</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Contact</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Email</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Emergency Contact Person</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Emergency Contact #</th>
-                              </>
-                            )}
-
-                            <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Date Hired</th>
-
-                            {showAllColumns && (
-                              <>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Tenurity</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Designation</th>
-                              </>
-                            )}
-
-
-                            {showAllColumns && (
-                              <>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">SSS No.</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Pag-ibig No.</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">PhilHealth No.</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Tin No.</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Department</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                              </>
-                            )}
-
-                            <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {currentItems.map((employee) => (
-                            <tr key={employee.id} className="table-row">
-                              <td className="px-3 py-4 whitespace-nowrap">
-                                <span className="badge font-bold text-slate-700 text-[13px]">{employee.employeeIdNumber || '(No ID)'}</span>
-                              </td>
-                              <td className="px-3 py-4 whitespace-nowrap">
-                                <div
-                                  className="w-20 h-20 rounded-[5px] bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-indigo-400 transition-all shadow-sm"
-                                  onClick={() => employee.profilePicture && setExpandedImage(employee.profilePicture)}
-                                >
-                                  {employee.profilePicture ? (
-                                    <img src={employee.profilePicture} className="w-full h-full object-cover" alt="" />
-                                  ) : (
-                                    <User className="w-10 h-10 text-slate-400" />
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-3 py-4 whitespace-nowrap">
-                                <span className="font-semibold text-slate-800 text-[13px]">{employee.lastName || '-'}</span>
-                              </td>
-                              <td className="px-3 py-4 whitespace-nowrap">
-                                <span className="font-semibold text-slate-800 text-[13px]">{employee.firstName || '-'}</span>
-                              </td>
-                              <td className="px-3 py-4 whitespace-nowrap">
-                                <span className="font-semibold text-slate-800 text-[13px]">{employee.middleName || '-'}</span>
-                              </td>
-                              <td className="px-3 py-4 whitespace-nowrap">
-                                <span className="text-slate-600 text-[13px]">{employee.sex || '-'}</span>
-                              </td>
-                              <td className="px-3 py-4 whitespace-nowrap">
-                                <span className="text-slate-500 text-[13px]">
-                                  {employee.birthday ? new Date(employee.birthday).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
-                                </span>
-                              </td>
-                              <td className="px-3 py-4 whitespace-nowrap">
-                                <span className="text-slate-600 text-[13px]">{employee.age || '-'}</span>
-                              </td>
-
-                              {showAllColumns && (
-                                <>
-                                  <td className="px-3 py-4 max-w-[150px] truncate">
-                                    <span
-                                      className="text-slate-600 text-[13px] cursor-help"
-                                      title={`${employee.street ? employee.street + ', ' : ''}${employee.barangay ? employee.barangay + ', ' : ''}${employee.city ? employee.city + ', ' : ''}${employee.province || ''}`}
-                                    >
-                                      {employee.city}{employee.city && employee.province ? ', ' : ''}{employee.province}
-                                    </span>
-                                  </td>
-                                  <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="text-slate-600 text-[13px] font-medium">{employee.contactNumber || '-'}</span>
-                                  </td>
-                                  <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="text-slate-600 text-[13px] font-medium">{employee.email || '-'}</span>
-                                  </td>
-                                  <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="text-slate-600 text-[13px] font-medium">{employee.emergencyContact?.name || '-'}</span>
-                                  </td>
-                                  <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="text-slate-600 text-[13px] font-medium">{employee.emergencyContact?.contactNumber || '-'}</span>
-                                  </td>
-                                </>
-                              )}
-
-                              <td className="px-3 py-4 whitespace-nowrap">
-                                <span className="text-slate-600 text-[13px]">
-                                  {employee.reportingDate ? new Date(employee.reportingDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
-                                </span>
-                              </td>
-
-                              {showAllColumns && (
-                                <>
-                                  <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="text-slate-600 text-[13px] font-medium">{calculateTenure(employee.reportingDate)}</span>
-                                  </td>
-                                  <td className="px-3 py-4">
-                                    <span className="text-slate-600 text-[13px]">{employee.hiredPosition || employee.positionApplied || '-'}</span>
-                                  </td>
-                                </>
-                              )}
-
-
-                              {showAllColumns && (
-                                <>
-                                  <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="text-slate-600 text-[13px]">{employee.sssNo || '-'}</span>
-                                  </td>
-                                  <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="text-slate-600 text-[13px]">{employee.pagibigNo || '-'}</span>
-                                  </td>
-                                  <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="text-slate-600 text-[13px]">{employee.philhealthNo || '-'}</span>
-                                  </td>
-                                  <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="text-slate-600 text-[13px]">{employee.tinNo || '-'}</span>
-                                  </td>
-                                  <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className="text-slate-600 text-[13px]">{employee.hiredDept || '-'}</span>
-                                  </td>
-                                  <td className="px-3 py-4 whitespace-nowrap">
-                                    <span className={`badge px-3 py-1 rounded-full text-[13px] ${employee.status === 'Active'
-                                      ? 'bg-emerald-100 text-emerald-700'
-                                      : 'bg-slate-100 text-slate-600'
-                                      }`}>
-                                      {employee.status}
-                                    </span>
-                                  </td>
-                                </>
-                              )}
-
-                              <td className="px-3 py-4 whitespace-nowrap">
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => handleEditEmployee(employee)}
-                                    className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                                    title="Edit"
-                                  >
-                                    <Pencil className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleViewEmployee(employee)}
-                                    className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-all"
-                                    title="View Details"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteEmployee(employee.id)}
-                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <p className="text-slate-500 dark:text-slate-400 text-lg">Welcome back! Here's your overview</p>
                     </div>
 
-                    {/* Mobile Cards */}
-                    <div className="lg:hidden divide-y divide-slate-100">
-                      {currentItems.map((employee) => (
-                        <div key={employee.id} className="p-6 hover:bg-slate-50 transition-all">
-                          <div className="flex items-start gap-4 mb-4">
-                            <div
-                              className="w-20 h-20 rounded-[5px] bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0 cursor-pointer shadow-sm"
-                              onClick={() => employee.profilePicture && setExpandedImage(employee.profilePicture)}
-                            >
-                              {employee.profilePicture ? (
-                                <img src={employee.profilePicture} className="w-full h-full object-cover" alt="" />
-                              ) : (
-                                <User className="w-10 h-10 text-slate-400" />
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <span className="badge font-bold text-slate-600 block mb-1">{employee.employeeIdNumber || employee.id}</span>
-                              <h3 className="font-bold text-lg text-slate-800">{employee.firstName} {employee.lastName}</h3>
-                            </div>
-                            <span className={`badge px-3 py-1 rounded-full ${employee.status === 'Active'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-slate-100 text-slate-600'
-                              }`}>
-                              {employee.status}
-                            </span>
-                          </div>
-                          <div className="space-y-2 mb-4">
-                            <p className="text-slate-600">
-                              <span className="font-semibold">Date Hired:</span> {employee.reportingDate ? new Date(employee.reportingDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="stat-card card-enter bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-xl hover-lift border border-slate-100 dark:border-slate-800" style={{ animationDelay: '0.1s' }}>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-slate-500 dark:text-slate-400 font-semibold mb-2 uppercase tracking-wider text-sm">Total Employees</p>
+                            <p className="text-5xl font-bold bg-gradient-to-br from-slate-800 to-indigo-600 dark:from-white dark:to-indigo-400 bg-clip-text text-transparent">
+                              {totalEmployees}
                             </p>
-                            <p className="text-slate-600"><span className="font-semibold">Department:</span> {employee.hiredDept || '-'}</p>
-                            <p className="text-slate-500 text-sm">{employee.email}</p>
                           </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleEditEmployee(employee)}
-                              className="flex-1 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-semibold hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
-                            >
-                              <Pencil className="w-4 h-4" />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleViewEmployee(employee)}
-                              className="flex-1 px-4 py-2 bg-slate-50 text-slate-600 rounded-lg font-semibold hover:bg-slate-100 transition-all flex items-center justify-center gap-2"
-                            >
-                              <Eye className="w-4 h-4" />
-                              View
-                            </button>
-                            <button
-                              onClick={() => handleDeleteEmployee(employee.id)}
-                              className="flex-1 px-4 py-2 bg-red-50 text-red-600 rounded-lg font-semibold hover:bg-red-100 transition-all flex items-center justify-center gap-2"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Delete
-                            </button>
+                          <div className="icon-wrapper w-14 h-14 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
+                            <Users className="w-7 h-7 text-white" />
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
 
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 items-center gap-4">
-                    <p className="text-sm text-slate-500 text-center md:text-left">
-                      Showing <span className="font-bold">{indexOfFirstItem + 1}</span> to <span className="font-bold">{Math.min(indexOfLastItem, filteredEmployees.length)}</span> of <span className="font-bold">{filteredEmployees.length}</span> results
-                    </p>
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => setCurrentTablePage(prev => Math.max(prev - 1, 1))}
-                        disabled={currentTablePage === 1}
-                        className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                      >
-                        <ChevronLeft className="w-5 h-5 text-slate-600" />
-                      </button>
-                      {Array.from({ length: totalPages }, (_, i) => (
-                        <button
-                          key={i + 1}
-                          onClick={() => paginate(i + 1)}
-                          className={`w-10 h-10 rounded-lg font-semibold transition-all ${currentTablePage === i + 1
-                            ? 'bg-indigo-600 text-white shadow-lg'
-                            : 'text-slate-600 hover:bg-slate-50'
-                            }`}
-                        >
-                          {i + 1}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => setCurrentTablePage(prev => Math.min(prev + 1, totalPages))}
-                        disabled={currentTablePage === totalPages}
-                        className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                      >
-                        <ChevronRight className="w-5 h-5 text-slate-600" />
-                      </button>
-                    </div>
-                    <div className="hidden md:block"></div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </main>
-      </div>
-
-      {/* Add Employee Modal */}
-      {
-        showModal && (
-          isViewOnly ? (
-            <PrintableProfileView employee={formData} onClose={closeModal} />
-          ) : (
-            <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <div className="modal-content bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
-                {/* Sticky Header Section */}
-                <div className="sticky top-0 z-20 bg-white px-8 pt-8 pb-4 shadow-sm">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h2 className="text-2xl font-bold text-slate-800">
-                        {isViewOnly ? 'View Employee Details' : (isEditing ? 'Edit Employee' : 'Add New Employee')}
-                      </h2>
-                      {!isViewOnly && (
-                        <p className="text-slate-500 text-sm mt-1">
-                          Step {currentStep} of 6: {
-                            currentStep === 1 ? 'Employee Information' :
-                              currentStep === 2 ? 'Employment History' :
-                                currentStep === 3 ? 'Education & Certificates' :
-                                  currentStep === 4 ? 'References & Emergency Contact' :
-                                    currentStep === 5 ? 'Information to the Applicant' :
-                                      'Step 6'
-                          }
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={closeModal}
-                      className="p-2 hover:bg-slate-100 rounded-lg transition-all"
-                    >
-                      <X className="w-5 h-5 text-slate-600" />
-                    </button>
-                  </div>
-
-                  {!isViewOnly && (
-                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-indigo-600 transition-all duration-500 ease-in-out"
-                        style={{ width: `${(currentStep / 6) * 100}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <form onSubmit={handleAddEmployee} className="space-y-6 p-8 pt-4">
-                  {(isViewOnly || currentStep === 1) && (
-                    <div className="space-y-6 card-enter">
-                      {/* Application Metadata */}
-                      <div className="space-y-4 mb-8 pb-6 border-b border-slate-100">
-                        {/* Row with Profile and Employee ID - justify-between */}
-                        <div className="flex items-center justify-between">
-                          {/* Profile Section */}
-                          <div className="flex items-center gap-4">
-                            <label className="text-[13px] font-bold text-slate-700">Profile:</label>
-                            <div
-                              className="relative w-28 h-28 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[5px] overflow-hidden hover:border-indigo-400 group cursor-pointer transition-all flex items-center justify-center"
-                              onClick={() => !isViewOnly && document.getElementById('profile-upload').click()}
-                            >
-                              {formData.profilePicture ? (
-                                <img src={formData.profilePicture} className="w-full h-full object-cover" alt="Profile" />
-                              ) : (
-                                <div className="text-slate-400 group-hover:text-indigo-500 transition-colors text-center">
-                                  <Camera className="w-8 h-8 mx-auto" strokeWidth={1.5} />
-                                  <span className="text-[10px] block mt-1 uppercase font-bold tracking-wider">Upload</span>
-                                </div>
-                              )}
-                              {!isViewOnly && (
-                                <input
-                                  id="profile-upload"
-                                  type="file"
-                                  className="hidden"
-                                  accept="image/*"
-                                  onChange={handleImageUpload}
-                                />
-                              )}
-                            </div>
+                      <div className="stat-card card-enter bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-xl hover-lift border border-slate-100 dark:border-slate-800" style={{ animationDelay: '0.2s' }}>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-slate-500 dark:text-slate-400 font-semibold mb-2 uppercase tracking-wider text-sm">Active Employees</p>
+                            <p className="text-5xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">
+                              {activeEmployees}
+                            </p>
                           </div>
-
-                          {/* Employee ID Section */}
-                          <div className="flex items-center gap-3">
-                            <label className="text-[13px] font-bold text-slate-700 whitespace-nowrap">Employee ID:</label>
-                            <div className="flex items-center border-b-2 border-slate-300 focus-within:border-indigo-600 transition-colors h-8">
-                              <span className="text-[13px] font-medium text-slate-800 pl-1 leading-none">EDP NO.</span>
-                              <input
-                                type="text"
-                                value={formData.employeeIdNumber}
-                                onChange={(e) => {
-                                  const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                                  setFormData({ ...formData, employeeIdNumber: value });
-                                }}
-                                className="w-14 pl-1 focus:outline-none bg-transparent text-[13px] font-medium text-slate-800 leading-none h-full"
-                                disabled={isViewOnly}
-                                placeholder="0000"
-                                maxLength="4"
-                              />
-                            </div>
+                          <div className="icon-wrapper w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg">
+                            <UserCheck className="w-7 h-7 text-white" />
                           </div>
                         </div>
+                      </div>
 
-                        {/* Position and Date - Same Row */}
-                        <div className="flex flex-col md:flex-row gap-8">
-                          <div className="flex-[2] flex items-end gap-3">
-                            <label className="text-sm font-bold text-slate-700 whitespace-nowrap">Position applying for:</label>
+                      <div className="stat-card card-enter bg-white dark:bg-slate-900 dark:border-slate-800 rounded-2xl p-8 shadow-xl hover-lift border border-slate-100" style={{ animationDelay: '0.3s' }}>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-slate-500 dark:text-slate-400 font-semibold mb-2 uppercase tracking-wider text-sm">Departments</p>
+                            <p className="text-5xl font-bold bg-gradient-to-br from-orange-600 to-pink-600 dark:from-orange-400 dark:to-pink-400 bg-clip-text text-transparent">
+                              {departments}
+                            </p>
+                          </div>
+                          <div className="icon-wrapper w-14 h-14 bg-gradient-to-br from-orange-400 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
+                            <Building2 className="w-7 h-7 text-white" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="card-enter bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-xl border border-slate-100 dark:border-slate-800" style={{ animationDelay: '0.4s' }}>
+                      <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6">Recent Activity</h2>
+                      <div className="space-y-4">
+                        {recentActivity.length > 0 ? (
+                          recentActivity.map((activity, index) => (
+                            <div key={activity.id || index} className="activity-item flex items-start gap-4 p-4 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${activity.type === 'new' ? 'bg-emerald-100' :
+                                activity.type === 'update' ? 'bg-blue-100' :
+                                  activity.type === 'delete' ? 'bg-red-100' :
+                                    'bg-orange-100'
+                                }`}>
+                                {activity.type === 'new' && <UserCheck className="w-5 h-5 text-emerald-600" />}
+                                {activity.type === 'update' && <Pencil className="w-5 h-5 text-blue-600" />}
+                                {activity.type === 'delete' && <Trash2 className="w-5 h-5 text-red-600" />}
+                                {!['new', 'update', 'delete'].includes(activity.type) && <Users className="w-5 h-5 text-orange-600" />}
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-semibold text-slate-800 dark:text-slate-200">{activity.title}</p>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{activity.description}</p>
+                              </div>
+                              <span className="text-slate-400 text-sm whitespace-nowrap">{formatRelativeTime(activity.created_at)}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-8">
+                            <p className="text-slate-400">No recent activity found.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {currentPage === 'employees' && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col gap-6">
+                      <div>
+                        <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-800 to-indigo-600 dark:from-white dark:to-indigo-400 bg-clip-text text-transparent mb-2">
+                          Employees
+                        </h1>
+                        <p className="text-slate-500 dark:text-slate-400 text-lg">Manage your team members</p>
+                      </div>
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
+                        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto flex-1">
+                          <div className="relative w-full md:w-56">
+                            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                             <input
                               type="text"
-                              value={formData.positionApplied || ''}
-                              onChange={(e) => setFormData({ ...formData, positionApplied: e.target.value })}
-                              className="flex-1 px-2 py-1 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm"
-                              disabled={isViewOnly}
-                              placeholder=""
+                              placeholder="Search employees..."
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              className="search-input w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 rounded-xl border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-400 focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400"
                             />
                           </div>
-                          <div className="flex-1 flex items-end gap-3">
-                            <label className="text-sm font-bold text-slate-700 whitespace-nowrap">Date of Application:</label>
-                            <input
-                              type="date"
-                              value={formData.applicationDate || ''}
-                              onChange={(e) => setFormData({ ...formData, applicationDate: e.target.value })}
-                              className="flex-1 px-2 py-1 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm"
-                              disabled={isViewOnly}
-                            />
+                          <div className="w-full md:w-56">
+                            <select
+                              value={selectedPosition}
+                              onChange={(e) => setSelectedPosition(e.target.value)}
+                              className="filter-select w-full px-4 py-3 bg-white dark:bg-slate-900 rounded-xl border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-400 focus:outline-none text-slate-700 dark:text-slate-200"
+                            >
+                              <option value="">All Positions</option>
+                              {uniquePositions.map((position) => (
+                                <option key={position} value={position}>
+                                  {position}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         </div>
-                      </div>
-
-                      {/* Personal Info Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">First Name</label>
-                          <input
-                            type="text"
-                            value={formData.firstName}
-                            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                            disabled={isViewOnly}
-                            placeholder="John"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">Middle Name</label>
-                          <input
-                            type="text"
-                            value={formData.middleName}
-                            onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
-                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                            disabled={isViewOnly}
-                            placeholder="D."
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">Last Name</label>
-                          <input
-                            type="text"
-                            value={formData.lastName}
-                            onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                            disabled={isViewOnly}
-                            placeholder="Doe"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Contact Info Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">Contact Number</label>
-                          <input
-                            type="tel"
-                            value={formData.contactNumber}
-                            onChange={(e) => {
-                              const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11);
-                              setFormData({ ...formData, contactNumber: numericValue });
-                            }}
-                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                            disabled={isViewOnly}
-                            placeholder="09123456789"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
-                          <input
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                            disabled={isViewOnly}
-                            placeholder="john.doe@company.com"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">Birthday</label>
-                          <input
-                            type="date"
-                            value={formData.birthday}
-                            onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
-                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                            disabled={isViewOnly}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Other Info Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">Age</label>
-                          <input
-                            type="number"
-                            readOnly
-                            value={formData.age}
-                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-slate-500 focus:outline-none"
-                            disabled={isViewOnly}
-                            placeholder="Age"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
-                          <select
-                            value={formData.status}
-                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                            disabled={isViewOnly}
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => setShowAllColumns(!showAllColumns)}
+                            className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 transition-all shadow-lg whitespace-nowrap"
                           >
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">Sex</label>
-                          <select
-                            value={formData.sex}
-                            onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
-                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                            disabled={isViewOnly}
+                            {showAllColumns ? (
+                              <>
+                                <Minimize2 className="w-5 h-5" />
+                                Show less
+                              </>
+                            ) : (
+                              <>
+                                <Maximize2 className="w-5 h-5" />
+                                Show more
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={handleOpenAddModal}
+                            className="btn-primary flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-semibold shadow-lg whitespace-nowrap"
                           >
-                            <option value="">Select Sex</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Address Section */}
-                      <div className="border-t border-slate-100 pt-4">
-                        <h3 className="text-lg font-bold text-slate-800 mb-4">Address Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Region</label>
-                            <select
-                              value={formData.regionCode}
-                              onChange={handleRegionChange}
-                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                              disabled={isViewOnly}
-                            >
-                              <option value="">Select Region</option>
-                              {regions.map(region => (
-                                <option key={region.code} value={region.code}>{region.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Province</label>
-                            <select
-                              value={formData.provinceCode}
-                              onChange={handleProvinceChange}
-                              disabled={isViewOnly || !formData.regionCode}
-                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none disabled:bg-slate-50"
-                            >
-                              <option value="">Select Province</option>
-                              {provinces.map(province => (
-                                <option key={province.code} value={province.code}>{province.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">City/Municipality</label>
-                            <select
-                              value={formData.cityCode}
-                              onChange={handleCityChange}
-                              disabled={isViewOnly || !formData.provinceCode}
-                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none disabled:bg-slate-50"
-                            >
-                              <option value="">Select City/Municipality</option>
-                              {cities.map(city => (
-                                <option key={city.code} value={city.code}>{city.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Barangay</label>
-                            <select
-                              value={formData.barangay}
-                              onChange={(e) => setFormData({ ...formData, barangay: e.target.value })}
-                              disabled={isViewOnly || !formData.cityCode}
-                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none disabled:bg-slate-50"
-                            >
-                              <option value="">Select Barangay</option>
-                              {barangays.map(barangay => (
-                                <option key={barangay.code} value={barangay.name}>{barangay.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Street/Building Name</label>
-                            <input
-                              type="text"
-                              value={formData.street}
-                              onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
-                              disabled={isViewOnly}
-                              placeholder="Unit 123, Example Bldg., 123 Main St."
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Zip Code</label>
-                            <input
-                              type="text"
-                              value={formData.zipCode}
-                              onChange={(e) => {
-                                const numericValue = e.target.value.replace(/\D/g, '').slice(0, 4);
-                                setFormData({ ...formData, zipCode: numericValue });
-                              }}
-                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-400 focus:outline-none"
-                              disabled={isViewOnly}
-                              placeholder="Zip Code"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-6">
-                          <div className="space-y-4">
-                            <div className="flex flex-col items-start gap-2">
-                              <label className="text-sm font-semibold text-slate-700">Can you perform the position's essential functions</label>
-                              <div className="flex items-center space-x-6">
-                                <span className="text-sm font-semibold text-slate-700">with or without accommodations?</span>
-                                <label className="flex items-center space-x-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={formData.essentialFunctions === 'Yes'}
-                                    onChange={(e) => !isViewOnly && setFormData({ ...formData, essentialFunctions: 'Yes' })}
-                                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                    disabled={isViewOnly}
-                                  />
-                                  <span className="text-slate-700">Yes</span>
-                                </label>
-                                <label className="flex items-center space-x-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={formData.essentialFunctions === 'No'}
-                                    onChange={(e) => !isViewOnly && setFormData({ ...formData, essentialFunctions: 'No' })}
-                                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                    disabled={isViewOnly}
-                                  />
-                                  <span className="text-slate-700">No</span>
-                                </label>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center space-x-4">
-                              <label className="text-sm font-semibold text-slate-700">I am seeking a permanent position:</label>
-                              <div className="flex items-center space-x-6">
-                                <label className="flex items-center space-x-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={formData.permanent === 'Yes'}
-                                    onChange={(e) => !isViewOnly && setFormData({ ...formData, permanent: 'Yes' })}
-                                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                    disabled={isViewOnly}
-                                  />
-                                  <span className="text-slate-700">Yes</span>
-                                </label>
-                                <label className="flex items-center space-x-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={formData.permanent === 'No'}
-                                    onChange={(e) => !isViewOnly && setFormData({ ...formData, permanent: 'No' })}
-                                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                    disabled={isViewOnly}
-                                  />
-                                  <span className="text-slate-700">No</span>
-                                </label>
-                              </div>
-                            </div>
-
-                            <div className="mb-4">
-                              <label className="block text-sm font-semibold text-slate-700 mb-2">How did you hear about the position?</label>
-                              <input
-                                type="text"
-                                value={formData.heardAboutPosition}
-                                onChange={(e) => setFormData({ ...formData, heardAboutPosition: e.target.value })}
-                                className="w-1/2 px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                disabled={isViewOnly}
-                                placeholder="Min. of 200 characters"
-                              />
-                            </div>
-
-                            <div className="flex flex-col md:flex-row gap-4 mb-4">
-                              <div className="w-full md:w-1/2">
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Have you ever worked for this company?</label>
-                                <div className="flex items-center space-x-6 pt-2">
-                                  <label className="flex items-center space-x-2 cursor-pointer group">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.workedBefore === 'Yes'}
-                                      onChange={(e) => !isViewOnly && setFormData({ ...formData, workedBefore: 'Yes' })}
-                                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
-                                      disabled={isViewOnly}
-                                    />
-                                    <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Yes</span>
-                                  </label>
-                                  <label className="flex items-center space-x-2 cursor-pointer group">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.workedBefore === 'No'}
-                                      onChange={(e) => !isViewOnly && setFormData({ ...formData, workedBefore: 'No', workedWhen: '' })}
-                                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
-                                      disabled={isViewOnly}
-                                    />
-                                    <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">No</span>
-                                  </label>
-                                </div>
-                              </div>
-                              <div className="w-full md:w-1/2">
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">If yes, when?</label>
-                                <input
-                                  type="date"
-                                  value={formData.workedWhen}
-                                  onChange={(e) => setFormData({ ...formData, workedWhen: e.target.value })}
-                                  className={`w-full px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent transition-opacity ${formData.workedBefore !== 'Yes' ? 'opacity-50 cursor-not-allowed' : 'opacity-100'}`}
-                                  disabled={isViewOnly || formData.workedBefore !== 'Yes'}
-                                />
-                              </div>
-                            </div>
-
-                            <div className="space-y-6">
-                              <div className="space-y-4">
-                                <p className="text-sm font-bold text-slate-800 tracking-wide">If necessary for the job, I can:</p>
-
-                                <div className="flex items-center space-x-6">
-                                  <label className="text-sm font-semibold text-slate-700">Work overtime?</label>
-                                  <div className="flex items-center space-x-6">
-                                    <label className="flex items-center space-x-2 cursor-pointer group">
-                                      <input
-                                        type="checkbox"
-                                        checked={formData.canWorkOvertime === 'Yes'}
-                                        onChange={(e) => !isViewOnly && setFormData({ ...formData, canWorkOvertime: 'Yes' })}
-                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
-                                        disabled={isViewOnly}
-                                      />
-                                      <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Yes</span>
-                                    </label>
-                                    <label className="flex items-center space-x-2 cursor-pointer group">
-                                      <input
-                                        type="checkbox"
-                                        checked={formData.canWorkOvertime === 'No'}
-                                        onChange={(e) => !isViewOnly && setFormData({ ...formData, canWorkOvertime: 'No' })}
-                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
-                                        disabled={isViewOnly}
-                                      />
-                                      <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">No</span>
-                                    </label>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center space-x-6">
-                                  <label className="text-sm font-semibold text-slate-700">Do you have a Driver's License?</label>
-                                  <div className="flex items-center space-x-6">
-                                    <label className="flex items-center space-x-2 cursor-pointer group">
-                                      <input
-                                        type="checkbox"
-                                        checked={formData.hasDriversLicense === 'Yes'}
-                                        onChange={(e) => !isViewOnly && setFormData({ ...formData, hasDriversLicense: 'Yes' })}
-                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
-                                        disabled={isViewOnly}
-                                      />
-                                      <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Yes</span>
-                                    </label>
-                                    <label className="flex items-center space-x-2 cursor-pointer group">
-                                      <input
-                                        type="checkbox"
-                                        checked={formData.hasDriversLicense === 'No'}
-                                        onChange={(e) => !isViewOnly && setFormData({ ...formData, hasDriversLicense: 'No' })}
-                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
-                                        disabled={isViewOnly}
-                                      />
-                                      <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">No</span>
-                                    </label>
-                                  </div>
-                                </div>
-
-                                <div className={`space-y-4 transition-all duration-300 ${formData.hasDriversLicense === 'Yes' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden pointer-events-none'}`}>
-                                  <p className="text-sm font-semibold text-slate-700">If so, fill out the following:</p>
-                                  <div className="flex items-end gap-4 ml-4">
-                                    <label className="text-sm font-semibold text-slate-700 mb-4 whitespace-nowrap">Issuing state:</label>
-                                    <input
-                                      type="text"
-                                      value={formData.licenseIssuingState}
-                                      onChange={(e) => setFormData({ ...formData, licenseIssuingState: e.target.value })}
-                                      className="w-48 px-2 pt-2 pb-4 border-b-4 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                      disabled={isViewOnly || formData.hasDriversLicense !== 'Yes'}
-                                      placeholder="State Name"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="space-y-4 pt-4 border-t border-slate-100">
-                                <p className="text-sm font-bold text-slate-800 tracking-wide">s: (check all that apply)</p>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                  {['Any', 'Day', 'Night', 'Swing', 'Rotating', 'Split', 'Graveyard'].map((shift) => (
-                                    <label key={shift} className="flex items-center space-x-2 cursor-pointer group">
-                                      <input
-                                        type="checkbox"
-                                        checked={formData.shifts.includes(shift)}
-                                        onChange={() => handleShiftChange(shift)}
-                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
-                                      />
-                                      <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">{shift}</span>
-                                    </label>
-                                  ))}
-                                  <div className="flex items-center space-x-2 group">
-                                    <label className="flex items-center space-x-2 cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        checked={formData.shifts.includes('Other')}
-                                        onChange={() => handleShiftChange('Other')}
-                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
-                                      />
-                                      <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Other:</span>
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={formData.shiftOtherValue}
-                                      onChange={(e) => setFormData({ ...formData, shiftOtherValue: e.target.value })}
-                                      className="w-full px-2 py-1 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm"
-                                      disabled={isViewOnly || !formData.shifts.includes('Other')}
-                                      placeholder="Specify..."
-                                    />
-                                  </div>
-                                </div>
-                                <div className="flex items-end gap-2 max-w-md">
-                                  <label className="text-sm font-semibold text-slate-700 whitespace-nowrap mb-1">Type: </label>
-                                  <input
-                                    type="text"
-                                    value={formData.shiftTypeLabel}
-                                    onChange={(e) => setFormData({ ...formData, shiftTypeLabel: e.target.value })}
-                                    className="flex-1 px-2 py-1 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm"
-                                    disabled={isViewOnly}
-                                    placeholder="Shift details"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                            <Plus className="w-5 h-5" />
+                            Add Employee
+                          </button>
                         </div>
                       </div>
                     </div>
-                  )}
-                  {(isViewOnly || currentStep === 2) && (
-                    <div className="space-y-6 card-enter">
-                      <p className="text-sm text-slate-500">List most recent employment first.</p>
 
-                      <div className="overflow-hidden border-2 border-slate-200 rounded-xl">
-                        <table className="w-full border-collapse">
-                          <tbody>
-                            {[0, 1, 2].map((rowIndex) => (
-                              <tr key={rowIndex} className={rowIndex !== 2 ? "border-b-2 border-slate-200" : ""}>
-                                <td className="border-r-2 border-slate-200 p-4 align-top">
-                                  <div className="space-y-3">
-                                    <div>
-                                      <label className="block text-xs font-semibold text-slate-700 mb-1">Employee name and address: </label>
-                                      <div className="space-y-2">
-                                        <input
-                                          type="text"
-                                          value={formData.employmentHistory[rowIndex].nameAddress1}
-                                          onChange={(e) => handleEmploymentChange(rowIndex, 'nameAddress1', e.target.value)}
-                                          className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                          disabled={isViewOnly}
-                                          placeholder="..."
-                                        />
-                                        <input
-                                          type="text"
-                                          value={formData.employmentHistory[rowIndex].nameAddress2}
-                                          onChange={(e) => handleEmploymentChange(rowIndex, 'nameAddress2', e.target.value)}
-                                          className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                          disabled={isViewOnly}
-                                          placeholder="..."
-                                        />
-                                        <input
-                                          type="text"
-                                          value={formData.employmentHistory[rowIndex].nameAddress3}
-                                          onChange={(e) => handleEmploymentChange(rowIndex, 'nameAddress3', e.target.value)}
-                                          className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                          disabled={isViewOnly}
-                                          placeholder="..."
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="flex items-end gap-2">
-                                      <label className="text-xs font-semibold text-slate-700 whitespace-nowrap mb-1">Pay: ₱</label>
-                                      <input
-                                        type="text"
-                                        value={formData.employmentHistory[rowIndex].pay}
-                                        onChange={(e) => {
-                                          const rawValue = e.target.value.replace(/\D/g, '');
-                                          const formattedValue = rawValue ? new Intl.NumberFormat().format(rawValue) : '';
-                                          handleEmploymentChange(rowIndex, 'pay', formattedValue);
-                                        }}
-                                        className="flex-1 border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                        disabled={isViewOnly} placeholder="..."
-                                      />
-                                    </div>
-                                    <div className="flex items-end gap-2">
-                                      <label className="text-xs font-semibold text-slate-700 whitespace-nowrap mb-1">Per: </label>
-                                      <input
-                                        type="text"
-                                        value={formData.employmentHistory[rowIndex].per}
-                                        onChange={(e) => handleEmploymentChange(rowIndex, 'per', e.target.value)}
-                                        className="flex-1 border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                        disabled={isViewOnly} placeholder="..."
-                                      />
-                                    </div>
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-800 flex flex-col">
+                      {/* Desktop Table */}
+                      <div className="hidden lg:block overflow-x-auto flex-1">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-indigo-900/20 border-b-2 border-indigo-100 dark:border-slate-800">
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Emp. ID</th>
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Profile</th>
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Last Name</th>
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">First Name</th>
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Middle Name</th>
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Gender</th>
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Birthdate</th>
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Age</th>
+
+                              {showAllColumns && (
+                                <>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Address</th>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Contact</th>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Email</th>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Emergency Contact Person</th>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Emergency Contact #</th>
+                                </>
+                              )}
+
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Date Hired</th>
+
+                              {showAllColumns && (
+                                <>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Tenurity</th>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Designation</th>
+                                </>
+                              )}
+
+
+                              {showAllColumns && (
+                                <>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">SSS No.</th>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Pag-ibig No.</th>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">PhilHealth No.</th>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Tin No.</th>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Department</th>
+                                  <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                                </>
+                              )}
+
+                              <th className="px-3 py-4 text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {currentItems.map((employee) => (
+                              <tr key={employee.id} className="table-row dark:hover:bg-slate-800/30 transition-colors">
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <span className="badge font-bold text-slate-700 dark:text-slate-200 text-[13px]">{employee.employeeIdNumber || '(No ID)'}</span>
+                                </td>
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <div
+                                    className="w-20 h-20 rounded-[5px] bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-indigo-400 transition-all shadow-sm"
+                                    onClick={() => employee.profilePicture && setExpandedImage(employee.profilePicture)}
+                                  >
+                                    {employee.profilePicture ? (
+                                      <img src={employee.profilePicture} className="w-full h-full object-cover" alt="" />
+                                    ) : (
+                                      <User className="w-10 h-10 text-slate-400" />
+                                    )}
                                   </div>
                                 </td>
-                                <td className="border-r-2 border-slate-200 p-4 align-top">
-                                  <div className="space-y-3">
-                                    <div>
-                                      <label className="block text-xs font-semibold text-slate-700 mb-1">Position title/duties, skills: </label>
-                                      <div className="space-y-2">
-                                        <input
-                                          type="text"
-                                          value={formData.employmentHistory[rowIndex].posSkills1}
-                                          onChange={(e) => handleEmploymentChange(rowIndex, 'posSkills1', e.target.value)}
-                                          className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                          disabled={isViewOnly} placeholder="..."
-                                        />
-                                        <input
-                                          type="text"
-                                          value={formData.employmentHistory[rowIndex].posSkills2}
-                                          onChange={(e) => handleEmploymentChange(rowIndex, 'posSkills2', e.target.value)}
-                                          className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                          disabled={isViewOnly} placeholder="..."
-                                        />
-                                        <input
-                                          type="text"
-                                          value={formData.employmentHistory[rowIndex].posSkills3}
-                                          onChange={(e) => handleEmploymentChange(rowIndex, 'posSkills3', e.target.value)}
-                                          className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                          disabled={isViewOnly} placeholder="..."
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="flex items-end gap-2">
-                                      <label className="text-xs font-semibold text-slate-700 whitespace-nowrap mb-1">Supervisor: </label>
-                                      <input
-                                        type="text"
-                                        value={formData.employmentHistory[rowIndex].supervisor}
-                                        onChange={(e) => handleEmploymentChange(rowIndex, 'supervisor', e.target.value)}
-                                        className="flex-1 border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                        disabled={isViewOnly} placeholder="..."
-                                      />
-                                    </div>
-                                    <div className="flex items-end gap-2">
-                                      <label className="text-xs font-semibold text-slate-700 whitespace-nowrap mb-1">Contact no.: </label>
-                                      <input
-                                        type="text"
-                                        value={formData.employmentHistory[rowIndex].contactNo}
-                                        onChange={(e) => {
-                                          const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11);
-                                          handleEmploymentChange(rowIndex, 'contactNo', numericValue);
-                                        }}
-                                        className="flex-1 border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                        disabled={isViewOnly} placeholder="..."
-                                      />
-                                    </div>
-                                  </div>
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <span className="font-semibold text-slate-800 dark:text-slate-200 text-[13px]">{employee.lastName || '-'}</span>
                                 </td>
-                                <td className="p-4 align-top">
-                                  <div className="space-y-3">
-                                    <div className="flex items-end gap-2">
-                                      <label className="text-xs font-semibold text-slate-700 whitespace-nowrap mb-1">Start date: </label>
-                                      <input
-                                        type="date"
-                                        value={formData.employmentHistory[rowIndex].startDate}
-                                        onChange={(e) => handleEmploymentChange(rowIndex, 'startDate', e.target.value)}
-                                        className="flex-1 border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1 uppercase"
-                                      />
-                                    </div>
-                                    <div className="flex items-end gap-2">
-                                      <label className="text-xs font-semibold text-slate-700 whitespace-nowrap mb-1">End date: </label>
-                                      <input
-                                        type="date"
-                                        value={formData.employmentHistory[rowIndex].endDate}
-                                        onChange={(e) => handleEmploymentChange(rowIndex, 'endDate', e.target.value)}
-                                        className="flex-1 border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1 uppercase"
-                                      />
-                                    </div>
-                                    <div className="space-y-1">
-                                      <label className="block text-xs font-semibold text-slate-700">Reason for leaving: </label>
-                                      <div className="space-y-2">
-                                        <input
-                                          type="text"
-                                          value={formData.employmentHistory[rowIndex].reasonLeaving1}
-                                          onChange={(e) => handleEmploymentChange(rowIndex, 'reasonLeaving1', e.target.value)}
-                                          className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                          disabled={isViewOnly} placeholder="..."
-                                        />
-                                        <input
-                                          type="text"
-                                          value={formData.employmentHistory[rowIndex].reasonLeaving2}
-                                          onChange={(e) => handleEmploymentChange(rowIndex, 'reasonLeaving2', e.target.value)}
-                                          className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                          disabled={isViewOnly} placeholder="..."
-                                        />
-                                        <input
-                                          type="text"
-                                          value={formData.employmentHistory[rowIndex].reasonLeaving3}
-                                          onChange={(e) => handleEmploymentChange(rowIndex, 'reasonLeaving3', e.target.value)}
-                                          className="w-full border-b border-slate-300 focus:border-indigo-600 focus:outline-none bg-transparent text-sm pb-1"
-                                          disabled={isViewOnly} placeholder="..."
-                                        />
-                                      </div>
-                                    </div>
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <span className="font-semibold text-slate-800 dark:text-slate-200 text-[13px]">{employee.firstName || '-'}</span>
+                                </td>
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <span className="font-semibold text-slate-800 dark:text-slate-200 text-[13px]">{employee.middleName || '-'}</span>
+                                </td>
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <span className="text-slate-600 dark:text-slate-400 text-[13px]">{employee.sex || '-'}</span>
+                                </td>
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <span className="text-slate-500 dark:text-slate-400 text-[13px]">
+                                    {employee.birthday ? new Date(employee.birthday).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <span className="text-slate-600 dark:text-slate-400 text-[13px]">{employee.age || '-'}</span>
+                                </td>
+
+                                {showAllColumns && (
+                                  <>
+                                    <td className="px-3 py-4 max-w-[150px] truncate">
+                                      <span
+                                        className="text-slate-600 dark:text-slate-400 text-[13px] cursor-help"
+                                        title={`${employee.street ? employee.street + ', ' : ''}${employee.barangay ? employee.barangay + ', ' : ''}${employee.city ? employee.city + ', ' : ''}${employee.province || ''}`}
+                                      >
+                                        {employee.city}{employee.city && employee.province ? ', ' : ''}{employee.province}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-4 whitespace-nowrap">
+                                      <span className="text-slate-600 dark:text-slate-400 text-[13px] font-medium">{employee.contactNumber || '-'}</span>
+                                    </td>
+                                    <td className="px-3 py-4 whitespace-nowrap">
+                                      <span className="text-slate-600 dark:text-slate-400 text-[13px] font-medium">{employee.email || '-'}</span>
+                                    </td>
+                                    <td className="px-3 py-4 whitespace-nowrap">
+                                      <span className="text-slate-600 dark:text-slate-400 text-[13px] font-medium">{employee.emergencyContact?.name || '-'}</span>
+                                    </td>
+                                    <td className="px-3 py-4 whitespace-nowrap">
+                                      <span className="text-slate-600 dark:text-slate-400 text-[13px] font-medium">{employee.emergencyContact?.contactNumber || '-'}</span>
+                                    </td>
+                                  </>
+                                )}
+
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <span className="text-slate-600 dark:text-slate-400 text-[13px]">
+                                    {employee.reportingDate ? new Date(employee.reportingDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                                  </span>
+                                </td>
+
+                                {showAllColumns && (
+                                  <>
+                                    <td className="px-3 py-4 whitespace-nowrap">
+                                      <span className="text-slate-600 dark:text-slate-400 text-[13px] font-medium">{calculateTenure(employee.reportingDate)}</span>
+                                    </td>
+                                    <td className="px-3 py-4">
+                                      <span className="text-slate-600 dark:text-slate-400 text-[13px]">{employee.hiredPosition || employee.positionApplied || '-'}</span>
+                                    </td>
+                                  </>
+                                )}
+
+
+                                {showAllColumns && (
+                                  <>
+                                    <td className="px-3 py-4 whitespace-nowrap">
+                                      <span className="text-slate-600 dark:text-slate-400 text-[13px]">{employee.sssNo || '-'}</span>
+                                    </td>
+                                    <td className="px-3 py-4 whitespace-nowrap">
+                                      <span className="text-slate-600 dark:text-slate-400 text-[13px]">{employee.pagibigNo || '-'}</span>
+                                    </td>
+                                    <td className="px-3 py-4 whitespace-nowrap">
+                                      <span className="text-slate-600 dark:text-slate-400 text-[13px]">{employee.philhealthNo || '-'}</span>
+                                    </td>
+                                    <td className="px-3 py-4 whitespace-nowrap">
+                                      <span className="text-slate-600 dark:text-slate-400 text-[13px]">{employee.tinNo || '-'}</span>
+                                    </td>
+                                    <td className="px-3 py-4 whitespace-nowrap">
+                                      <span className="text-slate-600 dark:text-slate-400 text-[13px]">{employee.hiredDept || '-'}</span>
+                                    </td>
+                                    <td className="px-3 py-4 whitespace-nowrap">
+                                      <span className={`badge px-3 py-1 rounded-full text-[13px] ${employee.status === 'Active'
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                                        }`}>
+                                        {employee.status}
+                                      </span>
+                                    </td>
+                                  </>
+                                )}
+
+                                <td className="px-3 py-4 whitespace-nowrap">
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleEditEmployee(employee)}
+                                      className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all"
+                                      title="Edit"
+                                    >
+                                      <Pencil className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleViewEmployee(employee)}
+                                      className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-all"
+                                      title="View Details"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteEmployee(employee.id)}
+                                      className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
                                   </div>
                                 </td>
                               </tr>
@@ -2739,65 +2085,834 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                           </tbody>
                         </table>
                       </div>
-                    </div>
-                  )}
-                  {(isViewOnly || currentStep === 3) && (
-                    <div className="space-y-6 card-enter">
-                      <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
-                        <h3 className="text-base font-bold text-slate-800 mb-6 text-center">EDUCATION</h3>
 
-                        <div className="overflow-hidden border-2 border-slate-200 rounded-xl">
+                      {/* Mobile Cards */}
+                      <div className="lg:hidden divide-y divide-slate-100">
+                        {currentItems.map((employee) => (
+                          <div key={employee.id} className="p-6 hover:bg-slate-50 transition-all">
+                            <div className="flex items-start gap-4 mb-4">
+                              <div
+                                className="w-20 h-20 rounded-[5px] bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0 cursor-pointer shadow-sm"
+                                onClick={() => employee.profilePicture && setExpandedImage(employee.profilePicture)}
+                              >
+                                {employee.profilePicture ? (
+                                  <img src={employee.profilePicture} className="w-full h-full object-cover" alt="" />
+                                ) : (
+                                  <User className="w-10 h-10 text-slate-400" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <span className="badge font-bold text-slate-600 block mb-1">{employee.employeeIdNumber || employee.id}</span>
+                                <h3 className="font-bold text-lg text-slate-800">{employee.firstName} {employee.lastName}</h3>
+                              </div>
+                              <span className={`badge px-3 py-1 rounded-full ${employee.status === 'Active'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                {employee.status}
+                              </span>
+                            </div>
+                            <div className="space-y-2 mb-4">
+                              <p className="text-slate-600">
+                                <span className="font-semibold">Date Hired:</span> {employee.reportingDate ? new Date(employee.reportingDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                              </p>
+                              <p className="text-slate-600"><span className="font-semibold">Department:</span> {employee.hiredDept || '-'}</p>
+                              <p className="text-slate-500 text-sm">{employee.email}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleEditEmployee(employee)}
+                                className="flex-1 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-semibold hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
+                              >
+                                <Pencil className="w-4 h-4" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleViewEmployee(employee)}
+                                className="flex-1 px-4 py-2 bg-slate-50 text-slate-600 rounded-lg font-semibold hover:bg-slate-100 transition-all flex items-center justify-center gap-2"
+                              >
+                                <Eye className="w-4 h-4" />
+                                View
+                              </button>
+                              <button
+                                onClick={() => handleDeleteEmployee(employee.id)}
+                                className="flex-1 px-4 py-2 bg-red-50 text-red-600 rounded-lg font-semibold hover:bg-red-100 transition-all flex items-center justify-center gap-2"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-3 items-center gap-4">
+                      <p className="text-sm text-slate-500 dark:text-slate-400 text-center md:text-left">
+                        Showing <span className="font-bold">{indexOfFirstItem + 1}</span> to <span className="font-bold">{Math.min(indexOfLastItem, filteredEmployees.length)}</span> of <span className="font-bold">{filteredEmployees.length}</span> results
+                      </p>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setCurrentTablePage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentTablePage === 1}
+                          className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => (
+                          <button
+                            key={i + 1}
+                            onClick={() => paginate(i + 1)}
+                            className={`w-10 h-10 rounded-lg font-semibold transition-all ${currentTablePage === i + 1
+                              ? 'bg-indigo-600 text-white shadow-lg'
+                              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                              }`}
+                          >
+                            {i + 1}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setCurrentTablePage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentTablePage === totalPages}
+                          className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                        </button>
+                      </div>
+                      <div className="hidden md:block"></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+        </div>
+
+        {/* Add Employee Modal */}
+        {
+          showModal && (
+            isViewOnly ? (
+              <PrintableProfileView employee={formData} onClose={closeModal} />
+            ) : (
+              <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="modal-content bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
+                  {/* Sticky Header Section */}
+                  <div className="sticky top-0 z-20 bg-white dark:bg-slate-900 px-8 pt-8 pb-4 shadow-sm dark:shadow-slate-800/50">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
+                          {isViewOnly ? 'View Employee Details' : (isEditing ? 'Edit Employee' : 'Add New Employee')}
+                        </h2>
+                        {!isViewOnly && (
+                          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+                            Step {currentStep} of 6: {
+                              currentStep === 1 ? 'Employee Information' :
+                                currentStep === 2 ? 'Employment History' :
+                                  currentStep === 3 ? 'Education & Certificates' :
+                                    currentStep === 4 ? 'References & Emergency Contact' :
+                                      currentStep === 5 ? 'Information to the Applicant' :
+                                        'Step 6'
+                            }
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={closeModal}
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+                      >
+                        <X className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                      </button>
+                    </div>
+
+                    {!isViewOnly && (
+                      <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-indigo-600 transition-all duration-500 ease-in-out"
+                          style={{ width: `${(currentStep / 6) * 100}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <form onSubmit={handleAddEmployee} className="space-y-6 p-8 pt-4">
+                    {(isViewOnly || currentStep === 1) && (
+                      <div className="space-y-6 card-enter">
+                        {/* Application Metadata */}
+                        <div className="space-y-4 mb-8 pb-6 border-b border-slate-100 dark:border-slate-800">
+                          {/* Row with Profile and Employee ID - justify-between */}
+                          <div className="flex items-center justify-between">
+                            {/* Profile Section */}
+                            <div className="flex items-center gap-4">
+                              <label className="text-[13px] font-bold text-slate-700 dark:text-slate-300">Profile:</label>
+                              <div
+                                className="relative w-28 h-28 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-[5px] overflow-hidden hover:border-indigo-400 group cursor-pointer transition-all flex items-center justify-center"
+                                onClick={() => !isViewOnly && document.getElementById('profile-upload').click()}
+                              >
+                                {formData.profilePicture ? (
+                                  <img src={formData.profilePicture} className="w-full h-full object-cover" alt="Profile" />
+                                ) : (
+                                  <div className="text-slate-400 group-hover:text-indigo-500 transition-colors text-center">
+                                    <Camera className="w-8 h-8 mx-auto" strokeWidth={1.5} />
+                                    <span className="text-[10px] block mt-1 uppercase font-bold tracking-wider">Upload</span>
+                                  </div>
+                                )}
+                                {!isViewOnly && (
+                                  <input
+                                    id="profile-upload"
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                  />
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Employee ID Section */}
+                            <div className="flex items-center gap-3">
+                              <label className="text-[13px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">Employee ID:</label>
+                              <div className="flex items-center border-b-2 border-slate-300 dark:border-slate-600 focus-within:border-indigo-600 transition-colors h-8">
+                                <span className="text-[13px] font-medium text-slate-800 dark:text-slate-200 pl-1 leading-none">EDP NO.</span>
+                                <input
+                                  type="text"
+                                  value={formData.employeeIdNumber}
+                                  onChange={(e) => {
+                                    const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                    setFormData({ ...formData, employeeIdNumber: value });
+                                  }}
+                                  className="w-14 pl-1 focus:outline-none bg-transparent text-[13px] font-medium text-slate-800 dark:text-white leading-none h-full"
+                                  disabled={isViewOnly}
+                                  placeholder="0000"
+                                  maxLength="4"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Position and Date - Same Row */}
+                          <div className="flex flex-col md:flex-row gap-8">
+                            <div className="flex-[2] flex items-end gap-3">
+                              <label className="text-sm font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">Position applying for:</label>
+                              <input
+                                type="text"
+                                value={formData.positionApplied || ''}
+                                onChange={(e) => setFormData({ ...formData, positionApplied: e.target.value })}
+                                className="flex-1 px-2 py-1 border-b-2 border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent text-sm dark:text-white"
+                                disabled={isViewOnly}
+                                placeholder=""
+                              />
+                            </div>
+                            <div className="flex-1 flex items-end gap-3">
+                              <label className="text-sm font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">Date of Application:</label>
+                              <input
+                                type="date"
+                                value={formData.applicationDate || ''}
+                                onChange={(e) => setFormData({ ...formData, applicationDate: e.target.value })}
+                                className="flex-1 px-2 py-1 border-b-2 border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent text-sm dark:text-white dark:[color-scheme:dark]"
+                                disabled={isViewOnly}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Personal Info Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">First Name</label>
+                            <input
+                              type="text"
+                              value={formData.firstName}
+                              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white"
+                              disabled={isViewOnly}
+                              placeholder="John"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Middle Name</label>
+                            <input
+                              type="text"
+                              value={formData.middleName}
+                              onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white"
+                              disabled={isViewOnly}
+                              placeholder="D."
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Last Name</label>
+                            <input
+                              type="text"
+                              value={formData.lastName}
+                              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white"
+                              disabled={isViewOnly}
+                              placeholder="Doe"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Contact Info Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Contact Number</label>
+                            <input
+                              type="tel"
+                              value={formData.contactNumber}
+                              onChange={(e) => {
+                                const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11);
+                                setFormData({ ...formData, contactNumber: numericValue });
+                              }}
+                              className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white"
+                              disabled={isViewOnly}
+                              placeholder="09123456789"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Email</label>
+                            <input
+                              type="email"
+                              value={formData.email}
+                              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white"
+                              disabled={isViewOnly}
+                              placeholder="john.doe@company.com"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Birthday</label>
+                            <input
+                              type="date"
+                              value={formData.birthday}
+                              onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white dark:[color-scheme:dark]"
+                              disabled={isViewOnly}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Other Info Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Age</label>
+                            <input
+                              type="number"
+                              readOnly
+                              value={formData.age}
+                              className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 focus:outline-none"
+                              disabled={isViewOnly}
+                              placeholder="Age"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Status</label>
+                            <select
+                              value={formData.status}
+                              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white"
+                              disabled={isViewOnly}
+                            >
+                              <option value="Active">Active</option>
+                              <option value="Inactive">Inactive</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Sex</label>
+                            <select
+                              value={formData.sex}
+                              onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white"
+                              disabled={isViewOnly}
+                            >
+                              <option value="">Select Sex</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Address Section */}
+                        <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+                          <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Address Information</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Region</label>
+                              <select
+                                value={formData.regionCode}
+                                onChange={handleRegionChange}
+                                className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white"
+                                disabled={isViewOnly}
+                              >
+                                <option value="">Select Region</option>
+                                {regions.map(region => (
+                                  <option key={region.code} value={region.code}>{region.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Province</label>
+                              <select
+                                value={formData.provinceCode}
+                                onChange={handleProvinceChange}
+                                disabled={isViewOnly || !formData.regionCode}
+                                className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-500 text-slate-800 dark:text-white"
+                              >
+                                <option value="">Select Province</option>
+                                {provinces.map(province => (
+                                  <option key={province.code} value={province.code}>{province.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">City/Municipality</label>
+                              <select
+                                value={formData.cityCode}
+                                onChange={handleCityChange}
+                                disabled={isViewOnly || !formData.provinceCode}
+                                className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-500 text-slate-800 dark:text-white"
+                              >
+                                <option value="">Select City/Municipality</option>
+                                {cities.map(city => (
+                                  <option key={city.code} value={city.code}>{city.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Barangay</label>
+                              <select
+                                value={formData.barangay}
+                                onChange={(e) => setFormData({ ...formData, barangay: e.target.value })}
+                                disabled={isViewOnly || !formData.cityCode}
+                                className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-500 text-slate-800 dark:text-white"
+                              >
+                                <option value="">Select Barangay</option>
+                                {barangays.map(barangay => (
+                                  <option key={barangay.code} value={barangay.name}>{barangay.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Street/Building Name</label>
+                              <input
+                                type="text"
+                                value={formData.street}
+                                onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                                className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white"
+                                disabled={isViewOnly}
+                                placeholder="Unit 123, Example Bldg., 123 Main St."
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Zip Code</label>
+                              <input
+                                type="text"
+                                value={formData.zipCode}
+                                onChange={(e) => {
+                                  const numericValue = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                  setFormData({ ...formData, zipCode: numericValue });
+                                }}
+                                className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white"
+                                disabled={isViewOnly}
+                                placeholder="Zip Code"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-6">
+                            <div className="space-y-4">
+                              <div className="flex flex-col items-start gap-2">
+                                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Can you perform the position's essential functions</label>
+                                <div className="flex items-center space-x-6">
+                                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">with or without accommodations?</span>
+                                  <label className="flex items-center space-x-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={formData.essentialFunctions === 'Yes'}
+                                      onChange={(e) => !isViewOnly && setFormData({ ...formData, essentialFunctions: 'Yes' })}
+                                      className="w-5 h-5 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 bg-white dark:bg-slate-800"
+                                      disabled={isViewOnly}
+                                    />
+                                    <span className="text-slate-700 dark:text-slate-300">Yes</span>
+                                  </label>
+                                  <label className="flex items-center space-x-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={formData.essentialFunctions === 'No'}
+                                      onChange={(e) => !isViewOnly && setFormData({ ...formData, essentialFunctions: 'No' })}
+                                      className="w-5 h-5 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 bg-white dark:bg-slate-800"
+                                      disabled={isViewOnly}
+                                    />
+                                    <span className="text-slate-700 dark:text-slate-300">No</span>
+                                  </label>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center space-x-4">
+                                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">I am seeking a permanent position:</label>
+                                <div className="flex items-center space-x-6">
+                                  <label className="flex items-center space-x-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={formData.permanent === 'Yes'}
+                                      onChange={(e) => !isViewOnly && setFormData({ ...formData, permanent: 'Yes' })}
+                                      className="w-5 h-5 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 bg-white dark:bg-slate-800"
+                                      disabled={isViewOnly}
+                                    />
+                                    <span className="text-slate-700 dark:text-slate-300">Yes</span>
+                                  </label>
+                                  <label className="flex items-center space-x-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={formData.permanent === 'No'}
+                                      onChange={(e) => !isViewOnly && setFormData({ ...formData, permanent: 'No' })}
+                                      className="w-5 h-5 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 bg-white dark:bg-slate-800"
+                                      disabled={isViewOnly}
+                                    />
+                                    <span className="text-slate-700 dark:text-slate-300">No</span>
+                                  </label>
+                                </div>
+                              </div>
+
+                              <div className="mb-4">
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">How did you hear about the position?</label>
+                                <input
+                                  type="text"
+                                  value={formData.heardAboutPosition}
+                                  onChange={(e) => setFormData({ ...formData, heardAboutPosition: e.target.value })}
+                                  className="w-1/2 px-2 pt-2 pb-4 border-b-4 border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white"
+                                  disabled={isViewOnly}
+                                  placeholder="Min. of 200 characters"
+                                />
+                              </div>
+
+                              <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                <div className="w-full md:w-1/2">
+                                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Have you ever worked for this company?</label>
+                                  <div className="flex items-center space-x-6 pt-2">
+                                    <label className="flex items-center space-x-2 cursor-pointer group">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.workedBefore === 'Yes'}
+                                        onChange={(e) => !isViewOnly && setFormData({ ...formData, workedBefore: 'Yes' })}
+                                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400 bg-white dark:bg-slate-800"
+                                        disabled={isViewOnly}
+                                      />
+                                      <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">Yes</span>
+                                    </label>
+                                    <label className="flex items-center space-x-2 cursor-pointer group">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.workedBefore === 'No'}
+                                        onChange={(e) => !isViewOnly && setFormData({ ...formData, workedBefore: 'No', workedWhen: '' })}
+                                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400 bg-white dark:bg-slate-800"
+                                        disabled={isViewOnly}
+                                      />
+                                      <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">No</span>
+                                    </label>
+                                  </div>
+                                </div>
+                                <div className="w-full md:w-1/2">
+                                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">If yes, when?</label>
+                                  <input
+                                    type="date"
+                                    value={formData.workedWhen}
+                                    onChange={(e) => setFormData({ ...formData, workedWhen: e.target.value })}
+                                    className={`w-full px-2 pt-2 pb-4 border-b-4 border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark] transition-opacity ${formData.workedBefore !== 'Yes' ? 'opacity-50 cursor-not-allowed' : 'opacity-100'}`}
+                                    disabled={isViewOnly || formData.workedBefore !== 'Yes'}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-6">
+                                <div className="space-y-4">
+                                  <p className="text-sm font-bold text-slate-800 dark:text-white tracking-wide">If necessary for the job, I can:</p>
+
+                                  <div className="flex items-center space-x-6">
+                                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Work overtime?</label>
+                                    <div className="flex items-center space-x-6">
+                                      <label className="flex items-center space-x-2 cursor-pointer group">
+                                        <input
+                                          type="checkbox"
+                                          checked={formData.canWorkOvertime === 'Yes'}
+                                          onChange={(e) => !isViewOnly && setFormData({ ...formData, canWorkOvertime: 'Yes' })}
+                                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400 bg-white dark:bg-slate-800"
+                                          disabled={isViewOnly}
+                                        />
+                                        <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">Yes</span>
+                                      </label>
+                                      <label className="flex items-center space-x-2 cursor-pointer group">
+                                        <input
+                                          type="checkbox"
+                                          checked={formData.canWorkOvertime === 'No'}
+                                          onChange={(e) => !isViewOnly && setFormData({ ...formData, canWorkOvertime: 'No' })}
+                                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400 bg-white dark:bg-slate-800"
+                                          disabled={isViewOnly}
+                                        />
+                                        <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">No</span>
+                                      </label>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center space-x-6">
+                                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Do you have a Driver's License?</label>
+                                    <div className="flex items-center space-x-6">
+                                      <label className="flex items-center space-x-2 cursor-pointer group">
+                                        <input
+                                          type="checkbox"
+                                          checked={formData.hasDriversLicense === 'Yes'}
+                                          onChange={(e) => !isViewOnly && setFormData({ ...formData, hasDriversLicense: 'Yes' })}
+                                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400 bg-white dark:bg-slate-800"
+                                          disabled={isViewOnly}
+                                        />
+                                        <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">Yes</span>
+                                      </label>
+                                      <label className="flex items-center space-x-2 cursor-pointer group">
+                                        <input
+                                          type="checkbox"
+                                          checked={formData.hasDriversLicense === 'No'}
+                                          onChange={(e) => !isViewOnly && setFormData({ ...formData, hasDriversLicense: 'No' })}
+                                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400 bg-white dark:bg-slate-800"
+                                          disabled={isViewOnly}
+                                        />
+                                        <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">No</span>
+                                      </label>
+                                    </div>
+                                  </div>
+
+                                  <div className={`space-y-4 transition-all duration-300 ${formData.hasDriversLicense === 'Yes' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden pointer-events-none'}`}>
+                                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">If so, fill out the following:</p>
+                                    <div className="flex items-end gap-4 ml-4">
+                                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 whitespace-nowrap">Issuing state:</label>
+                                      <input
+                                        type="text"
+                                        value={formData.licenseIssuingState}
+                                        onChange={(e) => setFormData({ ...formData, licenseIssuingState: e.target.value })}
+                                        className="w-48 px-2 pt-2 pb-4 border-b-4 border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white"
+                                        disabled={isViewOnly || formData.hasDriversLicense !== 'Yes'}
+                                        placeholder="State Name"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                  <p className="text-sm font-bold text-slate-800 dark:text-white tracking-wide">s: (check all that apply)</p>
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {['Any', 'Day', 'Night', 'Swing', 'Rotating', 'Split', 'Graveyard'].map((shift) => (
+                                      <label key={shift} className="flex items-center space-x-2 cursor-pointer group">
+                                        <input
+                                          type="checkbox"
+                                          checked={formData.shifts.includes(shift)}
+                                          onChange={() => handleShiftChange(shift)}
+                                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400 bg-white dark:bg-slate-800"
+                                        />
+                                        <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">{shift}</span>
+                                      </label>
+                                    ))}
+                                    <div className="flex items-center space-x-2 group">
+                                      <label className="flex items-center space-x-2 cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={formData.shifts.includes('Other')}
+                                          onChange={() => handleShiftChange('Other')}
+                                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400 bg-white dark:bg-slate-800"
+                                        />
+                                        <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">Other:</span>
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={formData.shiftOtherValue}
+                                        onChange={(e) => setFormData({ ...formData, shiftOtherValue: e.target.value })}
+                                        className="w-full px-2 py-1 border-b-2 border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm"
+                                        disabled={isViewOnly || !formData.shifts.includes('Other')}
+                                        placeholder="Specify..."
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-end gap-2 max-w-md">
+                                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap mb-1">Type: </label>
+                                    <input
+                                      type="text"
+                                      value={formData.shiftTypeLabel}
+                                      onChange={(e) => setFormData({ ...formData, shiftTypeLabel: e.target.value })}
+                                      className="flex-1 px-2 py-1 border-b-2 border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm"
+                                      disabled={isViewOnly}
+                                      placeholder="Shift details"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {(isViewOnly || currentStep === 2) && (
+                      <div className="space-y-6 card-enter">
+                        <p className="text-sm text-slate-500 dark:text-slate-400">List most recent employment first.</p>
+
+                        <div className="overflow-hidden border-2 border-slate-200 dark:border-slate-700 rounded-xl">
                           <table className="w-full border-collapse">
-                            <thead>
-                              <tr className="bg-gradient-to-r from-slate-50 to-indigo-50 border-b-2 border-indigo-100">
-                                <th className="text-left py-3 px-4 text-xs font-bold text-slate-600 uppercase tracking-wider border-r-2 border-slate-200"></th>
-                                <th className="text-left py-3 px-4 text-xs font-bold text-slate-600 uppercase tracking-wider border-r-2 border-slate-200">Institution Name</th>
-                                <th className="text-left py-3 px-4 text-xs font-bold text-slate-600 uppercase tracking-wider border-r-2 border-slate-200">Years Completed</th>
-                                <th className="text-left py-3 px-4 text-xs font-bold text-slate-600 uppercase tracking-wider border-r-2 border-slate-200">Field of Study</th>
-                                <th className="text-left py-3 px-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Graduate or Degree</th>
-                              </tr>
-                            </thead>
                             <tbody>
-                              {formData.education.map((edu, index) => (
-                                <tr key={index} className={index !== 3 ? "border-b-2 border-slate-200" : ""}>
-                                  <td className="py-3 px-4 border-r-2 border-slate-200 bg-slate-50">
-                                    <span className="text-sm font-bold text-slate-700">{edu.level}</span>
+                              {[0, 1, 2].map((rowIndex) => (
+                                <tr key={rowIndex} className={rowIndex !== 2 ? "border-b-2 border-slate-200 dark:border-slate-700" : ""}>
+                                  <td className="border-r-2 border-slate-200 dark:border-slate-700 p-4 align-top">
+                                    <div className="space-y-3">
+                                      <div>
+                                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Employee name and address: </label>
+                                        <div className="space-y-2">
+                                          <input
+                                            type="text"
+                                            value={formData.employmentHistory[rowIndex].nameAddress1}
+                                            onChange={(e) => handleEmploymentChange(rowIndex, 'nameAddress1', e.target.value)}
+                                            className="w-full border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                            disabled={isViewOnly}
+                                            placeholder="..."
+                                          />
+                                          <input
+                                            type="text"
+                                            value={formData.employmentHistory[rowIndex].nameAddress2}
+                                            onChange={(e) => handleEmploymentChange(rowIndex, 'nameAddress2', e.target.value)}
+                                            className="w-full border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                            disabled={isViewOnly}
+                                            placeholder="..."
+                                          />
+                                          <input
+                                            type="text"
+                                            value={formData.employmentHistory[rowIndex].nameAddress3}
+                                            onChange={(e) => handleEmploymentChange(rowIndex, 'nameAddress3', e.target.value)}
+                                            className="w-full border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                            disabled={isViewOnly}
+                                            placeholder="..."
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="flex items-end gap-2">
+                                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap mb-1">Pay: ₱</label>
+                                        <input
+                                          type="text"
+                                          value={formData.employmentHistory[rowIndex].pay}
+                                          onChange={(e) => {
+                                            const rawValue = e.target.value.replace(/\D/g, '');
+                                            const formattedValue = rawValue ? new Intl.NumberFormat().format(rawValue) : '';
+                                            handleEmploymentChange(rowIndex, 'pay', formattedValue);
+                                          }}
+                                          className="flex-1 border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                          disabled={isViewOnly} placeholder="..."
+                                        />
+                                      </div>
+                                      <div className="flex items-end gap-2">
+                                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap mb-1">Per: </label>
+                                        <input
+                                          type="text"
+                                          value={formData.employmentHistory[rowIndex].per}
+                                          onChange={(e) => handleEmploymentChange(rowIndex, 'per', e.target.value)}
+                                          className="flex-1 border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                          disabled={isViewOnly} placeholder="..."
+                                        />
+                                      </div>
+                                    </div>
                                   </td>
-                                  <td className="p-2 border-r-2 border-slate-200">
-                                    <input
-                                      type="text"
-                                      value={edu.institution}
-                                      onChange={(e) => handleEducationChange(index, 'institution', e.target.value)}
-                                      className="w-full bg-transparent focus:outline-none text-sm px-2 py-1"
-                                      disabled={isViewOnly} placeholder="..."
-                                    />
+                                  <td className="border-r-2 border-slate-200 dark:border-slate-700 p-4 align-top">
+                                    <div className="space-y-3">
+                                      <div>
+                                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Position title/duties, skills: </label>
+                                        <div className="space-y-2">
+                                          <input
+                                            type="text"
+                                            value={formData.employmentHistory[rowIndex].posSkills1}
+                                            onChange={(e) => handleEmploymentChange(rowIndex, 'posSkills1', e.target.value)}
+                                            className="w-full border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                            disabled={isViewOnly} placeholder="..."
+                                          />
+                                          <input
+                                            type="text"
+                                            value={formData.employmentHistory[rowIndex].posSkills2}
+                                            onChange={(e) => handleEmploymentChange(rowIndex, 'posSkills2', e.target.value)}
+                                            className="w-full border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                            disabled={isViewOnly} placeholder="..."
+                                          />
+                                          <input
+                                            type="text"
+                                            value={formData.employmentHistory[rowIndex].posSkills3}
+                                            onChange={(e) => handleEmploymentChange(rowIndex, 'posSkills3', e.target.value)}
+                                            className="w-full border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                            disabled={isViewOnly} placeholder="..."
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="flex items-end gap-2">
+                                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap mb-1">Supervisor: </label>
+                                        <input
+                                          type="text"
+                                          value={formData.employmentHistory[rowIndex].supervisor}
+                                          onChange={(e) => handleEmploymentChange(rowIndex, 'supervisor', e.target.value)}
+                                          className="flex-1 border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                          disabled={isViewOnly} placeholder="..."
+                                        />
+                                      </div>
+                                      <div className="flex items-end gap-2">
+                                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap mb-1">Contact no.: </label>
+                                        <input
+                                          type="text"
+                                          value={formData.employmentHistory[rowIndex].contactNo}
+                                          onChange={(e) => {
+                                            const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11);
+                                            handleEmploymentChange(rowIndex, 'contactNo', numericValue);
+                                          }}
+                                          className="flex-1 border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                          disabled={isViewOnly} placeholder="..."
+                                        />
+                                      </div>
+                                    </div>
                                   </td>
-                                  <td className="p-2 border-r-2 border-slate-200">
-                                    <input
-                                      type="text"
-                                      value={edu.years}
-                                      onChange={(e) => handleEducationChange(index, 'years', e.target.value)}
-                                      className="w-full bg-transparent focus:outline-none text-sm px-2 py-1"
-                                      disabled={isViewOnly} placeholder="..."
-                                    />
-                                  </td>
-                                  <td className="p-2 border-r-2 border-slate-200">
-                                    <input
-                                      type="text"
-                                      value={edu.field}
-                                      onChange={(e) => handleEducationChange(index, 'field', e.target.value)}
-                                      className="w-full bg-transparent focus:outline-none text-sm px-2 py-1"
-                                      disabled={isViewOnly} placeholder="..."
-                                    />
-                                  </td>
-                                  <td className="p-2">
-                                    <input
-                                      type="text"
-                                      value={edu.degree}
-                                      onChange={(e) => handleEducationChange(index, 'degree', e.target.value)}
-                                      className="w-full bg-transparent focus:outline-none text-sm px-2 py-1"
-                                      disabled={isViewOnly} placeholder="..."
-                                    />
+                                  <td className="p-4 align-top">
+                                    <div className="space-y-3">
+                                      <div className="flex items-end gap-2">
+                                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap mb-1">Start date: </label>
+                                        <input
+                                          type="date"
+                                          value={formData.employmentHistory[rowIndex].startDate}
+                                          onChange={(e) => handleEmploymentChange(rowIndex, 'startDate', e.target.value)}
+                                          className="flex-1 border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1 uppercase dark:[color-scheme:dark]"
+                                        />
+                                      </div>
+                                      <div className="flex items-end gap-2">
+                                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap mb-1">End date: </label>
+                                        <input
+                                          type="date"
+                                          value={formData.employmentHistory[rowIndex].endDate}
+                                          onChange={(e) => handleEmploymentChange(rowIndex, 'endDate', e.target.value)}
+                                          className="flex-1 border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1 uppercase dark:[color-scheme:dark]"
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Reason for leaving: </label>
+                                        <div className="space-y-2">
+                                          <input
+                                            type="text"
+                                            value={formData.employmentHistory[rowIndex].reasonLeaving1}
+                                            onChange={(e) => handleEmploymentChange(rowIndex, 'reasonLeaving1', e.target.value)}
+                                            className="w-full border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                            disabled={isViewOnly} placeholder="..."
+                                          />
+                                          <input
+                                            type="text"
+                                            value={formData.employmentHistory[rowIndex].reasonLeaving2}
+                                            onChange={(e) => handleEmploymentChange(rowIndex, 'reasonLeaving2', e.target.value)}
+                                            className="w-full border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                            disabled={isViewOnly} placeholder="..."
+                                          />
+                                          <input
+                                            type="text"
+                                            value={formData.employmentHistory[rowIndex].reasonLeaving3}
+                                            onChange={(e) => handleEmploymentChange(rowIndex, 'reasonLeaving3', e.target.value)}
+                                            className="w-full border-b border-slate-300 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white text-sm pb-1"
+                                            disabled={isViewOnly} placeholder="..."
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
                                   </td>
                                 </tr>
                               ))}
@@ -2805,1203 +2920,1303 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                           </table>
                         </div>
                       </div>
+                    )}
+                    {(isViewOnly || currentStep === 3) && (
+                      <div className="space-y-6 card-enter">
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
+                          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-6 text-center">EDUCATION</h3>
 
-                      <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
-                        <h3 className="text-base font-bold text-slate-800 mb-6 text-center">CERTIFICATE / VOCATIONAL COURSE</h3>
-
-                        <div className="space-y-4">
-                          <div className="flex items-center space-x-6">
-                            <label className="text-sm font-semibold text-slate-700">Do you have NCII?</label>
-                            <div className="flex items-center space-x-6">
-                              <label className="flex items-center space-x-2 cursor-pointer group">
-                                <input
-                                  type="checkbox"
-                                  checked={formData.hasNCII === 'Yes'}
-                                  onChange={() => setFormData({ ...formData, hasNCII: 'Yes' })}
-                                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
-                                />
-                                <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Yes</span>
-                              </label>
-                              <label className="flex items-center space-x-2 cursor-pointer group">
-                                <input
-                                  type="checkbox"
-                                  checked={formData.hasNCII === 'No'}
-                                  onChange={() => setFormData({ ...formData, hasNCII: 'No', specializedTraining: '' })}
-                                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400"
-                                />
-                                <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">No</span>
-                              </label>
-                            </div>
+                          <div className="overflow-hidden border-2 border-slate-200 dark:border-slate-700 rounded-xl">
+                            <table className="w-full border-collapse">
+                              <thead>
+                                <tr className="bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-800 dark:to-indigo-900/20 border-b-2 border-indigo-100 dark:border-slate-700">
+                                  <th className="text-left py-3 px-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider border-r-2 border-slate-200 dark:border-slate-700"></th>
+                                  <th className="text-left py-3 px-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider border-r-2 border-slate-200 dark:border-slate-700">Institution Name</th>
+                                  <th className="text-left py-3 px-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider border-r-2 border-slate-200 dark:border-slate-700">Years Completed</th>
+                                  <th className="text-left py-3 px-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider border-r-2 border-slate-200 dark:border-slate-700">Field of Study</th>
+                                  <th className="text-left py-3 px-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Graduate or Degree</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {formData.education.map((edu, index) => (
+                                  <tr key={index} className={index !== 3 ? "border-b-2 border-slate-200 dark:border-slate-700" : ""}>
+                                    <td className="py-3 px-4 border-r-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                                      <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{edu.level}</span>
+                                    </td>
+                                    <td className="p-2 border-r-2 border-slate-200 dark:border-slate-700">
+                                      <input
+                                        type="text"
+                                        value={edu.institution}
+                                        onChange={(e) => handleEducationChange(index, 'institution', e.target.value)}
+                                        className="w-full bg-transparent focus:outline-none dark:text-white text-sm px-2 py-1"
+                                        disabled={isViewOnly} placeholder="..."
+                                      />
+                                    </td>
+                                    <td className="p-2 border-r-2 border-slate-200 dark:border-slate-700">
+                                      <input
+                                        type="text"
+                                        value={edu.years}
+                                        onChange={(e) => handleEducationChange(index, 'years', e.target.value)}
+                                        className="w-full bg-transparent focus:outline-none dark:text-white text-sm px-2 py-1"
+                                        disabled={isViewOnly} placeholder="..."
+                                      />
+                                    </td>
+                                    <td className="p-2 border-r-2 border-slate-200 dark:border-slate-700">
+                                      <input
+                                        type="text"
+                                        value={edu.field}
+                                        onChange={(e) => handleEducationChange(index, 'field', e.target.value)}
+                                        className="w-full bg-transparent focus:outline-none dark:text-white text-sm px-2 py-1"
+                                        disabled={isViewOnly} placeholder="..."
+                                      />
+                                    </td>
+                                    <td className="p-2">
+                                      <input
+                                        type="text"
+                                        value={edu.degree}
+                                        onChange={(e) => handleEducationChange(index, 'degree', e.target.value)}
+                                        className="w-full bg-transparent focus:outline-none dark:text-white text-sm px-2 py-1"
+                                        disabled={isViewOnly} placeholder="..."
+                                      />
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
+                        </div>
 
-                          {formData.hasNCII === 'Yes' && (
-                            <div className="flex items-center gap-2 ml-4 transition-all duration-300">
-                              <label className="text-sm font-semibold text-slate-700 whitespace-nowrap">Duty/specialized training:</label>
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
+                          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-6 text-center">CERTIFICATE / VOCATIONAL COURSE</h3>
+
+                          <div className="space-y-4">
+                            <div className="flex items-center space-x-6">
+                              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Do you have NCII?</label>
+                              <div className="flex items-center space-x-6">
+                                <label className="flex items-center space-x-2 cursor-pointer group">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.hasNCII === 'Yes'}
+                                    onChange={() => setFormData({ ...formData, hasNCII: 'Yes' })}
+                                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400 bg-white dark:bg-slate-800"
+                                  />
+                                  <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">Yes</span>
+                                </label>
+                                <label className="flex items-center space-x-2 cursor-pointer group">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.hasNCII === 'No'}
+                                    onChange={() => setFormData({ ...formData, hasNCII: 'No', specializedTraining: '' })}
+                                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 transition-all group-hover:border-indigo-400 bg-white dark:bg-slate-800"
+                                  />
+                                  <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">No</span>
+                                </label>
+                              </div>
+                            </div>
+
+                            {formData.hasNCII === 'Yes' && (
+                              <div className="flex items-center gap-2 ml-4 transition-all duration-300">
+                                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">Duty/specialized training:</label>
+                                <input
+                                  type="text"
+                                  value={formData.specializedTraining}
+                                  onChange={(e) => setFormData({ ...formData, specializedTraining: e.target.value })}
+                                  className="flex-1 px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                  disabled={isViewOnly}
+                                  placeholder="Enter specialized training details..."
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
+                          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-6 text-center">SKILLS & QUALIFICATIONS</h3>
+
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                Other qualifications such as special skills, abilities, or honors that should be considered:
+                              </label>
                               <input
                                 type="text"
-                                value={formData.specializedTraining}
-                                onChange={(e) => setFormData({ ...formData, specializedTraining: e.target.value })}
-                                className="flex-1 px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
+                                value={formData.otherQualifications}
+                                onChange={(e) => setFormData({ ...formData, otherQualifications: e.target.value })}
+                                className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
                                 disabled={isViewOnly}
-                                placeholder="Enter specialized training details..."
+                                placeholder="Enter qualifications..."
                               />
                             </div>
-                          )}
-                        </div>
-                      </div>
 
-                      <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
-                        <h3 className="text-base font-bold text-slate-800 mb-6 text-center">SKILLS & QUALIFICATIONS</h3>
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                Types of computers, software, and other equipment you are qualified to operate or repair:
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.computerEquipment}
+                                onChange={(e) => setFormData({ ...formData, computerEquipment: e.target.value })}
+                                className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                disabled={isViewOnly}
+                                placeholder="Enter computer/software/equipment skills..."
+                              />
+                            </div>
 
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                              Other qualifications such as special skills, abilities, or honors that should be considered:
-                            </label>
-                            <input
-                              type="text"
-                              value={formData.otherQualifications}
-                              onChange={(e) => setFormData({ ...formData, otherQualifications: e.target.value })}
-                              className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                              disabled={isViewOnly}
-                              placeholder="Enter qualifications..."
-                            />
-                          </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                Professional licenses, certifications, or registrations:
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.professionalLicenses}
+                                onChange={(e) => setFormData({ ...formData, professionalLicenses: e.target.value })}
+                                className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                disabled={isViewOnly}
+                                placeholder="Enter licenses/certifications..."
+                              />
+                            </div>
 
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                              Types of computers, software, and other equipment you are qualified to operate or repair:
-                            </label>
-                            <input
-                              type="text"
-                              value={formData.computerEquipment}
-                              onChange={(e) => setFormData({ ...formData, computerEquipment: e.target.value })}
-                              className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                              disabled={isViewOnly}
-                              placeholder="Enter computer/software/equipment skills..."
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                              Professional licenses, certifications, or registrations:
-                            </label>
-                            <input
-                              type="text"
-                              value={formData.professionalLicenses}
-                              onChange={(e) => setFormData({ ...formData, professionalLicenses: e.target.value })}
-                              className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                              disabled={isViewOnly}
-                              placeholder="Enter licenses/certifications..."
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                              Additional skills, including supervision skills, other languages, or information regarding the career/occupation you wish to bring to the employer's attention:
-                            </label>
-                            <input
-                              type="text"
-                              value={formData.additionalSkills}
-                              onChange={(e) => setFormData({ ...formData, additionalSkills: e.target.value })}
-                              className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                              disabled={isViewOnly}
-                            />
+                            <div>
+                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                Additional skills, including supervision skills, other languages, or information regarding the career/occupation you wish to bring to the employer's attention:
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.additionalSkills}
+                                onChange={(e) => setFormData({ ...formData, additionalSkills: e.target.value })}
+                                className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                disabled={isViewOnly}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  {(isViewOnly || currentStep === 4) && (
-                    <div className="space-y-6 card-enter">
-                      <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
-                        <h3 className="text-base font-bold text-slate-800 mb-4 text-center">REFERENCES</h3>
-                        <p className="text-sm text-slate-600 mb-6 text-center">
-                          List two personal references who are not relatives or former supervisors
-                        </p>
+                    )}
+                    {(isViewOnly || currentStep === 4) && (
+                      <div className="space-y-6 card-enter">
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
+                          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-4 text-center">REFERENCES</h3>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 text-center">
+                            List two personal references who are not relatives or former supervisors
+                          </p>
 
-                        <div className="space-y-8">
-                          {/* Reference 1 */}
-                          <div className="p-4 bg-slate-50 rounded-xl border-2 border-slate-200">
-                            <h4 className="text-sm font-bold text-slate-700 mb-4">Reference 1</h4>
+                          <div className="space-y-8">
+                            {/* Reference 1 */}
+                            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border-2 border-slate-200 dark:border-slate-700">
+                              <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-4">Reference 1</h4>
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Last Name</label>
+                                    <input
+                                      type="text"
+                                      value={formData.references[0].lastName}
+                                      onChange={(e) => {
+                                        const newRefs = [...formData.references];
+                                        newRefs[0] = { ...newRefs[0], lastName: e.target.value };
+                                        setFormData({ ...formData, references: newRefs });
+                                      }}
+                                      className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                      disabled={isViewOnly}
+                                      placeholder="Last Name"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">First Name</label>
+                                    <input
+                                      type="text"
+                                      value={formData.references[0].firstName}
+                                      onChange={(e) => {
+                                        const newRefs = [...formData.references];
+                                        newRefs[0] = { ...newRefs[0], firstName: e.target.value };
+                                        setFormData({ ...formData, references: newRefs });
+                                      }}
+                                      className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                      disabled={isViewOnly}
+                                      placeholder="First Name"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Middle Name</label>
+                                    <input
+                                      type="text"
+                                      value={formData.references[0].middleName}
+                                      onChange={(e) => {
+                                        const newRefs = [...formData.references];
+                                        newRefs[0] = { ...newRefs[0], middleName: e.target.value };
+                                        setFormData({ ...formData, references: newRefs });
+                                      }}
+                                      className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                      disabled={isViewOnly}
+                                      placeholder="Middle Name"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Address</label>
+                                  <input
+                                    type="text"
+                                    value={formData.references[0].address}
+                                    onChange={(e) => {
+                                      const newRefs = [...formData.references];
+                                      newRefs[0] = { ...newRefs[0], address: e.target.value };
+                                      setFormData({ ...formData, references: newRefs });
+                                    }}
+                                    className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                    disabled={isViewOnly}
+                                    placeholder="Complete Address"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Telephone</label>
+                                    <input
+                                      type="text"
+                                      value={formData.references[0].telephone}
+                                      onChange={(e) => {
+                                        const val = e.target.value.replace(/\D/g, '').slice(0, 11);
+                                        const newRefs = [...formData.references];
+                                        newRefs[0] = { ...newRefs[0], telephone: val };
+                                        setFormData({ ...formData, references: newRefs });
+                                      }}
+                                      className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                      disabled={isViewOnly} placeholder="11 digits"
+                                      maxLength="11"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Occupation</label>
+                                    <input
+                                      type="text"
+                                      value={formData.references[0].occupation}
+                                      onChange={(e) => {
+                                        const newRefs = [...formData.references];
+                                        newRefs[0] = { ...newRefs[0], occupation: e.target.value };
+                                        setFormData({ ...formData, references: newRefs });
+                                      }}
+                                      className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                      disabled={isViewOnly}
+                                      placeholder="Occupation"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Years Known</label>
+                                    <input
+                                      type="text"
+                                      value={formData.references[0].yearsKnown}
+                                      onChange={(e) => {
+                                        const newRefs = [...formData.references];
+                                        newRefs[0] = { ...newRefs[0], yearsKnown: e.target.value };
+                                        setFormData({ ...formData, references: newRefs });
+                                      }}
+                                      className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                      disabled={isViewOnly}
+                                      placeholder="Years"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Reference 2 */}
+                            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border-2 border-slate-200 dark:border-slate-700">
+                              <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-4">Reference 2</h4>
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Last Name</label>
+                                    <input
+                                      type="text"
+                                      value={formData.references[1].lastName}
+                                      onChange={(e) => {
+                                        const newRefs = [...formData.references];
+                                        newRefs[1] = { ...newRefs[1], lastName: e.target.value };
+                                        setFormData({ ...formData, references: newRefs });
+                                      }}
+                                      className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                      disabled={isViewOnly}
+                                      placeholder="Last Name"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">First Name</label>
+                                    <input
+                                      type="text"
+                                      value={formData.references[1].firstName}
+                                      onChange={(e) => {
+                                        const newRefs = [...formData.references];
+                                        newRefs[1] = { ...newRefs[1], firstName: e.target.value };
+                                        setFormData({ ...formData, references: newRefs });
+                                      }}
+                                      className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                      disabled={isViewOnly}
+                                      placeholder="First Name"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Middle Name</label>
+                                    <input
+                                      type="text"
+                                      value={formData.references[1].middleName}
+                                      onChange={(e) => {
+                                        const newRefs = [...formData.references];
+                                        newRefs[1] = { ...newRefs[1], middleName: e.target.value };
+                                        setFormData({ ...formData, references: newRefs });
+                                      }}
+                                      className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                      disabled={isViewOnly}
+                                      placeholder="Middle Name"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Address</label>
+                                  <input
+                                    type="text"
+                                    value={formData.references[1].address}
+                                    onChange={(e) => {
+                                      const newRefs = [...formData.references];
+                                      newRefs[1] = { ...newRefs[1], address: e.target.value };
+                                      setFormData({ ...formData, references: newRefs });
+                                    }}
+                                    className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                    disabled={isViewOnly}
+                                    placeholder="Complete Address"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Telephone</label>
+                                    <input
+                                      type="text"
+                                      value={formData.references[1].telephone}
+                                      onChange={(e) => {
+                                        const val = e.target.value.replace(/\D/g, '').slice(0, 11);
+                                        const newRefs = [...formData.references];
+                                        newRefs[1] = { ...newRefs[1], telephone: val };
+                                        setFormData({ ...formData, references: newRefs });
+                                      }}
+                                      className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                      disabled={isViewOnly} placeholder="11 digits"
+                                      maxLength="11"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Occupation</label>
+                                    <input
+                                      type="text"
+                                      value={formData.references[1].occupation}
+                                      onChange={(e) => {
+                                        const newRefs = [...formData.references];
+                                        newRefs[1] = { ...newRefs[1], occupation: e.target.value };
+                                        setFormData({ ...formData, references: newRefs });
+                                      }}
+                                      className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                      disabled={isViewOnly}
+                                      placeholder="Occupation"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Years Known</label>
+                                    <input
+                                      type="text"
+                                      value={formData.references[1].yearsKnown}
+                                      onChange={(e) => {
+                                        const newRefs = [...formData.references];
+                                        newRefs[1] = { ...newRefs[1], yearsKnown: e.target.value };
+                                        setFormData({ ...formData, references: newRefs });
+                                      }}
+                                      className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                      disabled={isViewOnly}
+                                      placeholder="Years"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
+                          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-6 text-center uppercase">In Case of Emergency</h3>
+
+                          <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border-2 border-slate-200 dark:border-slate-700">
+                            <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-4">In case of accident or illness, please get in touch with:</h4>
                             <div className="space-y-4">
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Last Name</label>
+                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Name</label>
                                   <input
                                     type="text"
-                                    value={formData.references[0].lastName}
-                                    onChange={(e) => {
-                                      const newRefs = [...formData.references];
-                                      newRefs[0] = { ...newRefs[0], lastName: e.target.value };
-                                      setFormData({ ...formData, references: newRefs });
-                                    }}
-                                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                    disabled={isViewOnly}
-                                    placeholder="Last Name"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">First Name</label>
-                                  <input
-                                    type="text"
-                                    value={formData.references[0].firstName}
-                                    onChange={(e) => {
-                                      const newRefs = [...formData.references];
-                                      newRefs[0] = { ...newRefs[0], firstName: e.target.value };
-                                      setFormData({ ...formData, references: newRefs });
-                                    }}
-                                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                    disabled={isViewOnly}
-                                    placeholder="First Name"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Middle Name</label>
-                                  <input
-                                    type="text"
-                                    value={formData.references[0].middleName}
-                                    onChange={(e) => {
-                                      const newRefs = [...formData.references];
-                                      newRefs[0] = { ...newRefs[0], middleName: e.target.value };
-                                      setFormData({ ...formData, references: newRefs });
-                                    }}
-                                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                    disabled={isViewOnly}
-                                    placeholder="Middle Name"
-                                  />
-                                </div>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Address</label>
-                                <input
-                                  type="text"
-                                  value={formData.references[0].address}
-                                  onChange={(e) => {
-                                    const newRefs = [...formData.references];
-                                    newRefs[0] = { ...newRefs[0], address: e.target.value };
-                                    setFormData({ ...formData, references: newRefs });
-                                  }}
-                                  className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                  disabled={isViewOnly}
-                                  placeholder="Complete Address"
-                                />
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Telephone</label>
-                                  <input
-                                    type="text"
-                                    value={formData.references[0].telephone}
-                                    onChange={(e) => {
-                                      const val = e.target.value.replace(/\D/g, '').slice(0, 11);
-                                      const newRefs = [...formData.references];
-                                      newRefs[0] = { ...newRefs[0], telephone: val };
-                                      setFormData({ ...formData, references: newRefs });
-                                    }}
-                                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                    disabled={isViewOnly} placeholder="11 digits"
-                                    maxLength="11"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Occupation</label>
-                                  <input
-                                    type="text"
-                                    value={formData.references[0].occupation}
-                                    onChange={(e) => {
-                                      const newRefs = [...formData.references];
-                                      newRefs[0] = { ...newRefs[0], occupation: e.target.value };
-                                      setFormData({ ...formData, references: newRefs });
-                                    }}
-                                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                    disabled={isViewOnly}
-                                    placeholder="Occupation"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Years Known</label>
-                                  <input
-                                    type="text"
-                                    value={formData.references[0].yearsKnown}
-                                    onChange={(e) => {
-                                      const newRefs = [...formData.references];
-                                      newRefs[0] = { ...newRefs[0], yearsKnown: e.target.value };
-                                      setFormData({ ...formData, references: newRefs });
-                                    }}
-                                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                    disabled={isViewOnly}
-                                    placeholder="Years"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Reference 2 */}
-                          <div className="p-4 bg-slate-50 rounded-xl border-2 border-slate-200">
-                            <h4 className="text-sm font-bold text-slate-700 mb-4">Reference 2</h4>
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Last Name</label>
-                                  <input
-                                    type="text"
-                                    value={formData.references[1].lastName}
-                                    onChange={(e) => {
-                                      const newRefs = [...formData.references];
-                                      newRefs[1] = { ...newRefs[1], lastName: e.target.value };
-                                      setFormData({ ...formData, references: newRefs });
-                                    }}
-                                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                    disabled={isViewOnly}
-                                    placeholder="Last Name"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">First Name</label>
-                                  <input
-                                    type="text"
-                                    value={formData.references[1].firstName}
-                                    onChange={(e) => {
-                                      const newRefs = [...formData.references];
-                                      newRefs[1] = { ...newRefs[1], firstName: e.target.value };
-                                      setFormData({ ...formData, references: newRefs });
-                                    }}
-                                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                    disabled={isViewOnly}
-                                    placeholder="First Name"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Middle Name</label>
-                                  <input
-                                    type="text"
-                                    value={formData.references[1].middleName}
-                                    onChange={(e) => {
-                                      const newRefs = [...formData.references];
-                                      newRefs[1] = { ...newRefs[1], middleName: e.target.value };
-                                      setFormData({ ...formData, references: newRefs });
-                                    }}
-                                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                    disabled={isViewOnly}
-                                    placeholder="Middle Name"
-                                  />
-                                </div>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Address</label>
-                                <input
-                                  type="text"
-                                  value={formData.references[1].address}
-                                  onChange={(e) => {
-                                    const newRefs = [...formData.references];
-                                    newRefs[1] = { ...newRefs[1], address: e.target.value };
-                                    setFormData({ ...formData, references: newRefs });
-                                  }}
-                                  className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                  disabled={isViewOnly}
-                                  placeholder="Complete Address"
-                                />
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Telephone</label>
-                                  <input
-                                    type="text"
-                                    value={formData.references[1].telephone}
-                                    onChange={(e) => {
-                                      const val = e.target.value.replace(/\D/g, '').slice(0, 11);
-                                      const newRefs = [...formData.references];
-                                      newRefs[1] = { ...newRefs[1], telephone: val };
-                                      setFormData({ ...formData, references: newRefs });
-                                    }}
-                                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                    disabled={isViewOnly} placeholder="11 digits"
-                                    maxLength="11"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Occupation</label>
-                                  <input
-                                    type="text"
-                                    value={formData.references[1].occupation}
-                                    onChange={(e) => {
-                                      const newRefs = [...formData.references];
-                                      newRefs[1] = { ...newRefs[1], occupation: e.target.value };
-                                      setFormData({ ...formData, references: newRefs });
-                                    }}
-                                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                    disabled={isViewOnly}
-                                    placeholder="Occupation"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Years Known</label>
-                                  <input
-                                    type="text"
-                                    value={formData.references[1].yearsKnown}
-                                    onChange={(e) => {
-                                      const newRefs = [...formData.references];
-                                      newRefs[1] = { ...newRefs[1], yearsKnown: e.target.value };
-                                      setFormData({ ...formData, references: newRefs });
-                                    }}
-                                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                    disabled={isViewOnly}
-                                    placeholder="Years"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-
-                      <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
-                        <h3 className="text-base font-bold text-slate-800 mb-6 text-center uppercase">In Case of Emergency</h3>
-
-                        <div className="p-4 bg-slate-50 rounded-xl border-2 border-slate-200">
-                          <h4 className="text-sm font-bold text-slate-700 mb-4">In case of accident or illness, please get in touch with:</h4>
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Name</label>
-                                <input
-                                  type="text"
-                                  value={formData.emergencyContact.name}
-                                  onChange={(e) => setFormData({
-                                    ...formData,
-                                    emergencyContact: { ...formData.emergencyContact, name: e.target.value }
-                                  })}
-                                  className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                  disabled={isViewOnly}
-                                  placeholder="Contact Name"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Relationship</label>
-                                <input
-                                  type="text"
-                                  value={formData.emergencyContact.relationship}
-                                  onChange={(e) => setFormData({
-                                    ...formData,
-                                    emergencyContact: { ...formData.emergencyContact, relationship: e.target.value }
-                                  })}
-                                  className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                  disabled={isViewOnly}
-                                  placeholder="Relationship"
-                                />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Address</label>
-                                <input
-                                  type="text"
-                                  value={formData.emergencyContact.address}
-                                  onChange={(e) => setFormData({
-                                    ...formData,
-                                    emergencyContact: { ...formData.emergencyContact, address: e.target.value }
-                                  })}
-                                  className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                  disabled={isViewOnly}
-                                  placeholder="Complete Address"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Cellphone #</label>
-                                <input
-                                  type="text"
-                                  value={formData.emergencyContact.contactNumber}
-                                  onChange={(e) => {
-                                    const val = e.target.value.replace(/\D/g, '').slice(0, 11);
-                                    setFormData({
+                                    value={formData.emergencyContact.name}
+                                    onChange={(e) => setFormData({
                                       ...formData,
-                                      emergencyContact: { ...formData.emergencyContact, contactNumber: val }
-                                    });
-                                  }}
-                                  className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none text-sm"
-                                  disabled={isViewOnly} placeholder="11 digits"
-                                  maxLength="11"
-                                />
+                                      emergencyContact: { ...formData.emergencyContact, name: e.target.value }
+                                    })}
+                                    className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                    disabled={isViewOnly}
+                                    placeholder="Contact Name"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Relationship</label>
+                                  <input
+                                    type="text"
+                                    value={formData.emergencyContact.relationship}
+                                    onChange={(e) => setFormData({
+                                      ...formData,
+                                      emergencyContact: { ...formData.emergencyContact, relationship: e.target.value }
+                                    })}
+                                    className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                    disabled={isViewOnly}
+                                    placeholder="Relationship"
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Address</label>
+                                  <input
+                                    type="text"
+                                    value={formData.emergencyContact.address}
+                                    onChange={(e) => setFormData({
+                                      ...formData,
+                                      emergencyContact: { ...formData.emergencyContact, address: e.target.value }
+                                    })}
+                                    className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                    disabled={isViewOnly}
+                                    placeholder="Complete Address"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-semibold text-slate-700 mb-2">Cellphone #</label>
+                                  <input
+                                    type="text"
+                                    value={formData.emergencyContact.contactNumber}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/\D/g, '').slice(0, 11);
+                                      setFormData({
+                                        ...formData,
+                                        emergencyContact: { ...formData.emergencyContact, contactNumber: val }
+                                      });
+                                    }}
+                                    className="w-full px-4 py-2 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl focus:border-indigo-400 focus:outline-none text-slate-800 dark:text-white text-sm"
+                                    disabled={isViewOnly} placeholder="11 digits"
+                                    maxLength="11"
+                                  />
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  {(isViewOnly || currentStep === 5) && (
-                    <div className="space-y-6 card-enter">
-                      <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
-                        <h3 className="text-base font-bold text-slate-800 mb-6 text-center uppercase tracking-wider">INFORMATION TO THE APPLICANT</h3>
+                    )}
+                    {(isViewOnly || currentStep === 5) && (
+                      <div className="space-y-6 card-enter">
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
+                          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-6 text-center uppercase tracking-wider">INFORMATION TO THE APPLICANT</h3>
 
-                        <div className="space-y-6 text-sm text-slate-700 leading-relaxed">
-                          <p>
-                            As part of our procedure for processing your employment application, your personal and employment references may be checked. If you have misrepresented or omitted any facts on this application, and are subsequently hired, you may be discharged from your job. You may make a written request for information derived from the checking of your references.
-                          </p>
-                          <p>
-                            If necessary for employment, you may be required to: supply your birth certificate or other proof of authorization to work in the EDP Engineering Services, have a physical examination and/or a drug test, or sign a conflict-of-interest agreement and abide by its terms. I understand and agree with the information shown above.
-                          </p>
+                          <div className="space-y-6 text-sm dark:text-slate-300 leading-relaxed">
+                            <p>
+                              As part of our procedure for processing your employment application, your personal and employment references may be checked. If you have misrepresented or omitted any facts on this application, and are subsequently hired, you may be discharged from your job. You may make a written request for information derived from the checking of your references.
+                            </p>
+                            <p>
+                              If necessary for employment, you may be required to: supply your birth certificate or other proof of authorization to work in the EDP Engineering Services, have a physical examination and/or a drug test, or sign a conflict-of-interest agreement and abide by its terms. I understand and agree with the information shown above.
+                            </p>
 
-                          <div className="pt-8 mt-8 border-t border-slate-200">
-                            <div className="flex flex-col md:flex-row justify-between items-end gap-8">
-                              <div className="w-full md:w-[70%]">
-                                <label className="block text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider text-center">
-                                  Signature of Applicant (Draw with Mouse/Touch)
-                                </label>
-                                <SignaturePad
-                                  value={formData.applicantSignature || ''}
-                                  onChange={(val) => setFormData({ ...formData, applicantSignature: val })}
-                                  disabled={isViewOnly}
-                                />
-                                <p className="text-[10px] text-slate-400 mt-2 text-center italic">Sign inside the box above</p>
+                            <div className="pt-8 mt-8 border-t border-slate-200">
+                              <div className="flex flex-col md:flex-row justify-between items-end gap-8">
+                                <div className="w-full md:w-[70%]">
+                                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider text-center">
+                                    Signature of Applicant (Draw with Mouse/Touch)
+                                  </label>
+                                  <SignaturePad
+                                    value={formData.applicantSignature || ''}
+                                    onChange={(val) => setFormData({ ...formData, applicantSignature: val })}
+                                    disabled={isViewOnly}
+                                  />
+                                  <p className="text-[10px] text-slate-400 mt-2 text-center italic">Sign inside the box above</p>
+                                </div>
+                                <div className="w-full md:w-[25%]">
+                                  <input
+                                    type="date"
+                                    value={formData.dateSigned}
+                                    onChange={(e) => setFormData({ ...formData, dateSigned: e.target.value })}
+                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark] text-center"
+                                    disabled={isViewOnly}
+                                  />
+                                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mt-2 text-center uppercase tracking-wider">
+                                    Date
+                                  </label>
+                                </div>
                               </div>
-                              <div className="w-full md:w-[25%]">
+                            </div>
+
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {(isViewOnly || currentStep === 6) && (
+                      <div className="space-y-6 card-enter">
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
+
+                          <div className="space-y-8 py-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div>
+                                <label className="block text-sm font-semibold dark:text-slate-300 mb-2">INTERVIEWED BY:</label>
+                                <input
+                                  type="text"
+                                  value={formData.interviewedBy || ''}
+                                  onChange={(e) => setFormData({ ...formData, interviewedBy: e.target.value })}
+                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                  disabled={isViewOnly}
+                                  placeholder="Enter interviewer name"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-semibold dark:text-slate-300 mb-2">DATE:</label>
                                 <input
                                   type="date"
-                                  value={formData.dateSigned}
-                                  onChange={(e) => setFormData({ ...formData, dateSigned: e.target.value })}
-                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent text-center"
-                                  disabled={isViewOnly}
-                                />
-                                <label className="block text-xs font-bold text-slate-500 mt-2 text-center uppercase tracking-wider">
-                                  Date
-                                </label>
-                              </div>
-                            </div>
-                          </div>
-
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {(isViewOnly || currentStep === 6) && (
-                    <div className="space-y-6 card-enter">
-                      <div className="bg-white p-6 rounded-2xl border-2 border-slate-200">
-
-                        <div className="space-y-8 py-6">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div>
-                              <label className="block text-sm font-semibold text-slate-700 mb-2">INTERVIEWED BY:</label>
-                              <input
-                                type="text"
-                                value={formData.interviewedBy || ''}
-                                onChange={(e) => setFormData({ ...formData, interviewedBy: e.target.value })}
-                                className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                disabled={isViewOnly}
-                                placeholder="Enter interviewer name"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-semibold text-slate-700 mb-2">DATE:</label>
-                              <input
-                                type="date"
-                                value={formData.interviewDate || ''}
-                                onChange={(e) => setFormData({ ...formData, interviewDate: e.target.value })}
-                                className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                disabled={isViewOnly}
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">REMARKS:</label>
-                            <div className="space-y-4">
-                              <input
-                                type="text"
-                                value={formData.remarks1 || ''}
-                                onChange={(e) => setFormData({ ...formData, remarks1: e.target.value })}
-                                className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                disabled={isViewOnly}
-                              />
-                              <input
-                                type="text"
-                                value={formData.remarks2 || ''}
-                                onChange={(e) => setFormData({ ...formData, remarks2: e.target.value })}
-                                className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                disabled={isViewOnly}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div>
-                              <label className="block text-sm font-semibold text-slate-700 mb-2">NEATNESS:</label>
-                              <input
-                                type="text"
-                                value={formData.neatness || ''}
-                                onChange={(e) => setFormData({ ...formData, neatness: e.target.value })}
-                                className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                disabled={isViewOnly}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-semibold text-slate-700 mb-2">ABILITY:</label>
-                              <input
-                                type="text"
-                                value={formData.ability || ''}
-                                onChange={(e) => setFormData({ ...formData, ability: e.target.value })}
-                                className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                disabled={isViewOnly}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            <div>
-                              <label className="block text-sm font-semibold text-slate-700 mb-2">HIRED:</label>
-                              <div className="flex gap-6 pt-2">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={formData.hired === 'Yes'}
-                                    onChange={(e) => setFormData({ ...formData, hired: e.target.checked ? 'Yes' : '' })}
-                                    disabled={isViewOnly}
-                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                  />
-                                  <span className="text-sm text-slate-700">Yes</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={formData.hired === 'No'}
-                                    onChange={(e) => setFormData({ ...formData, hired: e.target.checked ? 'No' : '' })}
-                                    disabled={isViewOnly}
-                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                  />
-                                  <span className="text-sm text-slate-700">No</span>
-                                </label>
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-semibold text-slate-700 mb-2">POSITION:</label>
-                              <input
-                                type="text"
-                                value={formData.hiredPosition || ''}
-                                onChange={(e) => setFormData({ ...formData, hiredPosition: e.target.value })}
-                                className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                disabled={isViewOnly}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-semibold text-slate-700 mb-2">DEPT:</label>
-                              <input
-                                type="text"
-                                value={formData.hiredDept || ''}
-                                onChange={(e) => setFormData({ ...formData, hiredDept: e.target.value })}
-                                className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                disabled={isViewOnly}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div>
-                              <label className="block text-sm font-semibold text-slate-700 mb-2">SALARY/WAGE:</label>
-                              <input
-                                type="text"
-                                value={formData.salaryWage || ''}
-                                onChange={(e) => setFormData({ ...formData, salaryWage: e.target.value })}
-                                className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                disabled={isViewOnly}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-semibold text-slate-700 mb-2">DATE OF REPORTING TO WORK:</label>
-                              <input
-                                type="date"
-                                value={formData.reportingDate || ''}
-                                onChange={(e) => setFormData({ ...formData, reportingDate: e.target.value })}
-                                className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                disabled={isViewOnly}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="mt-8 pt-6 border-t border-slate-200">
-                            <h4 className="text-base font-bold text-red-600 mb-4 uppercase tracking-wider">REQUIREMENTS</h4>
-
-                            <div className="space-y-6">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">SSS NO.:</label>
-                                  <input
-                                    type="text"
-                                    value={formData.sssNo || ''}
-                                    onChange={(e) => setFormData({ ...formData, sssNo: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="flex items-center gap-2 cursor-pointer pt-6">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasBirthCertificate || false}
-                                      onChange={(e) => setFormData({ ...formData, hasBirthCertificate: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">BIRTH CERTIFICATE</span>
-                                  </label>
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">PHILHEALTH NO.:</label>
-                                  <input
-                                    type="text"
-                                    value={formData.philhealthNo || ''}
-                                    onChange={(e) => setFormData({ ...formData, philhealthNo: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="flex items-center gap-2 cursor-pointer pt-6">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasMarriageContract || false}
-                                      onChange={(e) => setFormData({ ...formData, hasMarriageContract: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">MARRIAGE CONTRACT IF APPLICABLE</span>
-                                  </label>
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">PAG-IBIG NO.:</label>
-                                  <input
-                                    type="text"
-                                    value={formData.pagibigNo || ''}
-                                    onChange={(e) => setFormData({ ...formData, pagibigNo: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="flex items-center gap-2 cursor-pointer pt-6">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasNciiCertificate || false}
-                                      onChange={(e) => setFormData({ ...formData, hasNciiCertificate: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">NCII CERTIFICATES EXPIRED OR NOT EXPIRED</span>
-                                  </label>
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">TIN NO.:</label>
-                                  <input
-                                    type="text"
-                                    value={formData.tinNo || ''}
-                                    onChange={(e) => setFormData({ ...formData, tinNo: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mt-8 pt-6 border-t border-slate-200">
-                            <h4 className="text-base font-bold text-red-600 mb-4 uppercase tracking-wider">FOR NPI BIOMETRICS</h4>
-
-                            <div className="space-y-6">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                  <label className="flex items-center gap-2 cursor-pointer mb-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasNbi || false}
-                                      onChange={(e) => setFormData({ ...formData, hasNbi: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">NBI</span>
-                                  </label>
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">EXPIRY DATE:</label>
-                                  <input
-                                    type="date"
-                                    value={formData.nbiExpiryDate || ''}
-                                    onChange={(e) => setFormData({ ...formData, nbiExpiryDate: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                  <label className="flex items-center gap-2 cursor-pointer mb-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasEmploymentContract || false}
-                                      onChange={(e) => setFormData({ ...formData, hasEmploymentContract: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">EMPLOYMENT CONTRACT</span>
-                                  </label>
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">EXPIRY DATE:</label>
-                                  <input
-                                    type="date"
-                                    value={formData.employmentContractExpiryDate || ''}
-                                    onChange={(e) => setFormData({ ...formData, employmentContractExpiryDate: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                  <label className="flex items-center gap-2 cursor-pointer mb-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasDrugTest || false}
-                                      onChange={(e) => setFormData({ ...formData, hasDrugTest: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">DRUG TEST</span>
-                                  </label>
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">EXPIRY DATE:</label>
-                                  <input
-                                    type="date"
-                                    value={formData.drugTestExpiryDate || ''}
-                                    onChange={(e) => setFormData({ ...formData, drugTestExpiryDate: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                <div>
-                                  <label className="flex items-center gap-2 cursor-pointer mb-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasHealthCard || false}
-                                      onChange={(e) => setFormData({ ...formData, hasHealthCard: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">HEALTH CARD</span>
-                                  </label>
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">EXPIRY DATE:</label>
-                                  <input
-                                    type="date"
-                                    value={formData.healthCardExpiryDate || ''}
-                                    onChange={(e) => setFormData({ ...formData, healthCardExpiryDate: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">STATUS:</label>
-                                  <input
-                                    type="text"
-                                    value={formData.healthCardStatus || ''}
-                                    onChange={(e) => setFormData({ ...formData, healthCardStatus: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                  <label className="flex items-center gap-2 cursor-pointer mb-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasBarangayClearance || false}
-                                      onChange={(e) => setFormData({ ...formData, hasBarangayClearance: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">BRG BRGY. CLEARANCE</span>
-                                  </label>
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">EXPIRY DATE:</label>
-                                  <input
-                                    type="date"
-                                    value={formData.barangayClearanceExpiryDate || ''}
-                                    onChange={(e) => setFormData({ ...formData, barangayClearanceExpiryDate: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                  <label className="flex items-center gap-2 cursor-pointer mb-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasQuitclaim || false}
-                                      onChange={(e) => setFormData({ ...formData, hasQuitclaim: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">QUITCLAIM IF APPLICABLE</span>
-                                  </label>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mt-8 pt-6 border-t border-slate-200">
-                            <h4 className="text-base font-bold text-red-600 mb-4 uppercase tracking-wider">UNIFORM</h4>
-
-                            <div className="space-y-6">
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                <div>
-                                  <label className="flex items-center gap-2 cursor-pointer mb-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasLongPants || false}
-                                      onChange={(e) => setFormData({ ...formData, hasLongPants: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">LONG PANTS</span>
-                                  </label>
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">QTY:</label>
-                                  <input
-                                    type="text"
-                                    value={formData.longPantsQty || ''}
-                                    onChange={(e) => setFormData({ ...formData, longPantsQty: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                                <div className="flex gap-4">
-                                  <label className="flex items-center gap-2 cursor-pointer pt-6">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasPvcId || false}
-                                      onChange={(e) => setFormData({ ...formData, hasPvcId: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">PVC ID</span>
-                                  </label>
-                                  <label className="flex items-center gap-2 cursor-pointer pt-6">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasSling || false}
-                                      onChange={(e) => setFormData({ ...formData, hasSling: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">SLING</span>
-                                  </label>
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                                <div>
-                                  <label className="flex items-center gap-2 cursor-pointer mb-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.hasLongSleeves || false}
-                                      onChange={(e) => setFormData({ ...formData, hasLongSleeves: e.target.checked })}
-                                      disabled={isViewOnly}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm font-semibold text-slate-700">LONG SLEEVES</span>
-                                  </label>
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">BROWN QTY.:</label>
-                                  <input
-                                    type="text"
-                                    value={formData.longSleevesBrownQty || ''}
-                                    onChange={(e) => setFormData({ ...formData, longSleevesBrownQty: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">WHITE QTY.:</label>
-                                  <input
-                                    type="text"
-                                    value={formData.longSleevesWhiteQty || ''}
-                                    onChange={(e) => setFormData({ ...formData, longSleevesWhiteQty: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">OTHERS:</label>
-                                  <input
-                                    type="text"
-                                    value={formData.longSleevesOthers || ''}
-                                    onChange={(e) => setFormData({ ...formData, longSleevesOthers: e.target.value })}
-                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
-                                    disabled={isViewOnly}
-                                  />
-                                </div>
-                              </div>
-
-                              <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">REMARKS:</label>
-                                <input
-                                  type="text"
-                                  value={formData.uniformRemarks || ''}
-                                  onChange={(e) => setFormData({ ...formData, uniformRemarks: e.target.value })}
-                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
+                                  value={formData.interviewDate || ''}
+                                  onChange={(e) => setFormData({ ...formData, interviewDate: e.target.value })}
+                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
                                   disabled={isViewOnly}
                                 />
                               </div>
                             </div>
-                          </div>
 
-                          <div className="mt-8 pt-6 border-t border-slate-200">
-                            <h4 className="text-base font-bold text-red-600 mb-4 uppercase tracking-wider">LIST OF PPES</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-8">
-                              {[
-                                { id: 'ppeSafetyShoes', label: 'SAFETY SHOES' },
-                                { id: 'ppeGripGloves', label: 'GRIP GLOVES' },
-                                { id: 'ppeCottonGloves', label: 'COTTON GLOVES' },
-                                { id: 'ppeHardhat', label: 'HARDHAT' },
-                                { id: 'ppeFaceshield', label: 'FACESHIELD' },
-                                { id: 'ppeKn95Mask', label: 'KN95 MASK' },
-                                { id: 'ppeSpectacles', label: 'SPECTACLES' },
-                                { id: 'ppeEarplug', label: 'EARPLUG' },
-                                { id: 'ppeWeldingMask', label: 'WELDING MASK' },
-                                { id: 'ppeWeldingGloves', label: 'WELDING GLOVES' },
-                                { id: 'ppeWeldingApron', label: 'WELDING APRON' },
-                                { id: 'ppeFullBodyHarness', label: 'FULL BODY HARNESS' },
-                              ].map((item) => (
-                                <label key={item.id} className="flex items-center gap-2 cursor-pointer group">
-                                  <input
-                                    type="checkbox"
-                                    checked={formData[item.id] || false}
-                                    onChange={(e) => setFormData({ ...formData, [item.id]: e.target.checked })}
-                                    disabled={isViewOnly}
-                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 transition-colors"
-                                  />
-                                  <span className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">
-                                    {item.label}
-                                  </span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="mt-8 pt-6 border-t border-slate-200">
-                            <h4 className="text-base font-bold text-slate-800 mb-6 uppercase tracking-wider">APPROVED BY:</h4>
-                            <div className="space-y-6 max-w-md">
-                              <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">HR MANAGER:</label>
+                            <div>
+                              <label className="block text-sm font-semibold dark:text-slate-300 mb-2">REMARKS:</label>
+                              <div className="space-y-4">
                                 <input
                                   type="text"
-                                  value={formData.approvedHrManager || ''}
-                                  onChange={(e) => setFormData({ ...formData, approvedHrManager: e.target.value })}
-                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
+                                  value={formData.remarks1 || ''}
+                                  onChange={(e) => setFormData({ ...formData, remarks1: e.target.value })}
+                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                  disabled={isViewOnly}
+                                />
+                                <input
+                                  type="text"
+                                  value={formData.remarks2 || ''}
+                                  onChange={(e) => setFormData({ ...formData, remarks2: e.target.value })}
+                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                  disabled={isViewOnly}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div>
+                                <label className="block text-sm font-semibold dark:text-slate-300 mb-2">NEATNESS:</label>
+                                <input
+                                  type="text"
+                                  value={formData.neatness || ''}
+                                  onChange={(e) => setFormData({ ...formData, neatness: e.target.value })}
+                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
                                   disabled={isViewOnly}
                                 />
                               </div>
                               <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">GENERAL MANAGER:</label>
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">ABILITY:</label>
                                 <input
                                   type="text"
-                                  value={formData.approvedGeneralManager || ''}
-                                  onChange={(e) => setFormData({ ...formData, approvedGeneralManager: e.target.value })}
-                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
+                                  value={formData.ability || ''}
+                                  onChange={(e) => setFormData({ ...formData, ability: e.target.value })}
+                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                  disabled={isViewOnly}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                              <div>
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">HIRED:</label>
+                                <div className="flex gap-6 pt-2">
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={formData.hired === 'Yes'}
+                                      onChange={(e) => setFormData({ ...formData, hired: e.target.checked ? 'Yes' : '' })}
+                                      disabled={isViewOnly}
+                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                    />
+                                    <span className="text-sm text-slate-700 dark:text-slate-300">Yes</span>
+                                  </label>
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={formData.hired === 'No'}
+                                      onChange={(e) => setFormData({ ...formData, hired: e.target.checked ? 'No' : '' })}
+                                      disabled={isViewOnly}
+                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                    />
+                                    <span className="text-sm text-slate-700 dark:text-slate-300">No</span>
+                                  </label>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">POSITION:</label>
+                                <input
+                                  type="text"
+                                  value={formData.hiredPosition || ''}
+                                  onChange={(e) => setFormData({ ...formData, hiredPosition: e.target.value })}
+                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
                                   disabled={isViewOnly}
                                 />
                               </div>
                               <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">ASST. MANAGER:</label>
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">DEPT:</label>
                                 <input
                                   type="text"
-                                  value={formData.approvedAsstManager || ''}
-                                  onChange={(e) => setFormData({ ...formData, approvedAsstManager: e.target.value })}
-                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
+                                  value={formData.hiredDept || ''}
+                                  onChange={(e) => setFormData({ ...formData, hiredDept: e.target.value })}
+                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
                                   disabled={isViewOnly}
                                 />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div>
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">SALARY/WAGE:</label>
+                                <input
+                                  type="text"
+                                  value={formData.salaryWage || ''}
+                                  onChange={(e) => setFormData({ ...formData, salaryWage: e.target.value })}
+                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                  disabled={isViewOnly}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">DATE OF REPORTING TO WORK:</label>
+                                <input
+                                  type="date"
+                                  value={formData.reportingDate || ''}
+                                  onChange={(e) => setFormData({ ...formData, reportingDate: e.target.value })}
+                                  className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                  disabled={isViewOnly}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="mt-8 pt-6 border-t border-slate-200">
+                              <h4 className="text-base font-bold text-red-600 mb-4 uppercase tracking-wider">REQUIREMENTS</h4>
+
+                              <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">SSS NO.:</label>
+                                    <input
+                                      type="text"
+                                      value={formData.sssNo || ''}
+                                      onChange={(e) => setFormData({ ...formData, sssNo: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="flex items-center gap-2 cursor-pointer pt-6">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasBirthCertificate || false}
+                                        onChange={(e) => setFormData({ ...formData, hasBirthCertificate: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">BIRTH CERTIFICATE</span>
+                                    </label>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">PHILHEALTH NO.:</label>
+                                    <input
+                                      type="text"
+                                      value={formData.philhealthNo || ''}
+                                      onChange={(e) => setFormData({ ...formData, philhealthNo: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="flex items-center gap-2 cursor-pointer pt-6">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasMarriageContract || false}
+                                        onChange={(e) => setFormData({ ...formData, hasMarriageContract: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">MARRIAGE CONTRACT IF APPLICABLE</span>
+                                    </label>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">PAG-IBIG NO.:</label>
+                                    <input
+                                      type="text"
+                                      value={formData.pagibigNo || ''}
+                                      onChange={(e) => setFormData({ ...formData, pagibigNo: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="flex items-center gap-2 cursor-pointer pt-6">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasNciiCertificate || false}
+                                        onChange={(e) => setFormData({ ...formData, hasNciiCertificate: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">NCII CERTIFICATES EXPIRED OR NOT EXPIRED</span>
+                                    </label>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">TIN NO.:</label>
+                                    <input
+                                      type="text"
+                                      value={formData.tinNo || ''}
+                                      onChange={(e) => setFormData({ ...formData, tinNo: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-8 pt-6 border-t border-slate-200">
+                              <h4 className="text-base font-bold text-red-600 mb-4 uppercase tracking-wider">FOR NPI BIOMETRICS</h4>
+
+                              <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                  <div>
+                                    <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasNbi || false}
+                                        onChange={(e) => setFormData({ ...formData, hasNbi: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">NBI</span>
+                                    </label>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">EXPIRY DATE:</label>
+                                    <input
+                                      type="date"
+                                      value={formData.nbiExpiryDate || ''}
+                                      onChange={(e) => setFormData({ ...formData, nbiExpiryDate: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                  <div>
+                                    <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasEmploymentContract || false}
+                                        onChange={(e) => setFormData({ ...formData, hasEmploymentContract: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">EMPLOYMENT CONTRACT</span>
+                                    </label>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">EXPIRY DATE:</label>
+                                    <input
+                                      type="date"
+                                      value={formData.employmentContractExpiryDate || ''}
+                                      onChange={(e) => setFormData({ ...formData, employmentContractExpiryDate: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                  <div>
+                                    <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasDrugTest || false}
+                                        onChange={(e) => setFormData({ ...formData, hasDrugTest: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">DRUG TEST</span>
+                                    </label>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">EXPIRY DATE:</label>
+                                    <input
+                                      type="date"
+                                      value={formData.drugTestExpiryDate || ''}
+                                      onChange={(e) => setFormData({ ...formData, drugTestExpiryDate: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                  <div>
+                                    <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasHealthCard || false}
+                                        onChange={(e) => setFormData({ ...formData, hasHealthCard: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">HEALTH CARD</span>
+                                    </label>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">EXPIRY DATE:</label>
+                                    <input
+                                      type="date"
+                                      value={formData.healthCardExpiryDate || ''}
+                                      onChange={(e) => setFormData({ ...formData, healthCardExpiryDate: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">STATUS:</label>
+                                    <input
+                                      type="text"
+                                      value={formData.healthCardStatus || ''}
+                                      onChange={(e) => setFormData({ ...formData, healthCardStatus: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                  <div>
+                                    <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasBarangayClearance || false}
+                                        onChange={(e) => setFormData({ ...formData, hasBarangayClearance: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">BRG BRGY. CLEARANCE</span>
+                                    </label>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">EXPIRY DATE:</label>
+                                    <input
+                                      type="date"
+                                      value={formData.barangayClearanceExpiryDate || ''}
+                                      onChange={(e) => setFormData({ ...formData, barangayClearanceExpiryDate: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                  <div>
+                                    <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasQuitclaim || false}
+                                        onChange={(e) => setFormData({ ...formData, hasQuitclaim: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">QUITCLAIM IF APPLICABLE</span>
+                                    </label>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-8 pt-6 border-t border-slate-200">
+                              <h4 className="text-base font-bold text-red-600 mb-4 uppercase tracking-wider">UNIFORM</h4>
+
+                              <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                  <div>
+                                    <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasLongPants || false}
+                                        onChange={(e) => setFormData({ ...formData, hasLongPants: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">LONG PANTS</span>
+                                    </label>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">QTY:</label>
+                                    <input
+                                      type="text"
+                                      value={formData.longPantsQty || ''}
+                                      onChange={(e) => setFormData({ ...formData, longPantsQty: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                  <div className="flex gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer pt-6">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasPvcId || false}
+                                        onChange={(e) => setFormData({ ...formData, hasPvcId: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">PVC ID</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer pt-6">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasSling || false}
+                                        onChange={(e) => setFormData({ ...formData, hasSling: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">SLING</span>
+                                    </label>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                                  <div>
+                                    <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.hasLongSleeves || false}
+                                        onChange={(e) => setFormData({ ...formData, hasLongSleeves: e.target.checked })}
+                                        disabled={isViewOnly}
+                                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm font-semibold text-slate-700">LONG SLEEVES</span>
+                                    </label>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">BROWN QTY.:</label>
+                                    <input
+                                      type="text"
+                                      value={formData.longSleevesBrownQty || ''}
+                                      onChange={(e) => setFormData({ ...formData, longSleevesBrownQty: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">WHITE QTY.:</label>
+                                    <input
+                                      type="text"
+                                      value={formData.longSleevesWhiteQty || ''}
+                                      onChange={(e) => setFormData({ ...formData, longSleevesWhiteQty: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">OTHERS:</label>
+                                    <input
+                                      type="text"
+                                      value={formData.longSleevesOthers || ''}
+                                      onChange={(e) => setFormData({ ...formData, longSleevesOthers: e.target.value })}
+                                      className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                      disabled={isViewOnly}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-semibold text-slate-700 mb-2">REMARKS:</label>
+                                  <input
+                                    type="text"
+                                    value={formData.uniformRemarks || ''}
+                                    onChange={(e) => setFormData({ ...formData, uniformRemarks: e.target.value })}
+                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 dark:border-slate-600 focus:border-indigo-600 focus:outline-none bg-transparent dark:text-white dark:[color-scheme:dark]"
+                                    disabled={isViewOnly}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-8 pt-6 border-t border-slate-200">
+                              <h4 className="text-base font-bold text-red-600 mb-4 uppercase tracking-wider">LIST OF PPES</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-8">
+                                {[
+                                  { id: 'ppeSafetyShoes', label: 'SAFETY SHOES' },
+                                  { id: 'ppeGripGloves', label: 'GRIP GLOVES' },
+                                  { id: 'ppeCottonGloves', label: 'COTTON GLOVES' },
+                                  { id: 'ppeHardhat', label: 'HARDHAT' },
+                                  { id: 'ppeFaceshield', label: 'FACESHIELD' },
+                                  { id: 'ppeKn95Mask', label: 'KN95 MASK' },
+                                  { id: 'ppeSpectacles', label: 'SPECTACLES' },
+                                  { id: 'ppeEarplug', label: 'EARPLUG' },
+                                  { id: 'ppeWeldingMask', label: 'WELDING MASK' },
+                                  { id: 'ppeWeldingGloves', label: 'WELDING GLOVES' },
+                                  { id: 'ppeWeldingApron', label: 'WELDING APRON' },
+                                  { id: 'ppeFullBodyHarness', label: 'FULL BODY HARNESS' },
+                                ].map((item) => (
+                                  <label key={item.id} className="flex items-center gap-2 cursor-pointer group">
+                                    <input
+                                      type="checkbox"
+                                      checked={formData[item.id] || false}
+                                      onChange={(e) => setFormData({ ...formData, [item.id]: e.target.checked })}
+                                      disabled={isViewOnly}
+                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 transition-colors"
+                                    />
+                                    <span className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">
+                                      {item.label}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="mt-8 pt-6 border-t border-slate-200">
+                              <h4 className="text-base font-bold text-slate-800 dark:text-white mb-6 uppercase tracking-wider">APPROVED BY:</h4>
+                              <div className="space-y-6 max-w-md">
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-50 dark:text-slate-400 mb-1 uppercase tracking-wider">HR MANAGER:</label>
+                                  <input
+                                    type="text"
+                                    value={formData.approvedHrManager || ''}
+                                    onChange={(e) => setFormData({ ...formData, approvedHrManager: e.target.value })}
+                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
+                                    disabled={isViewOnly}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-50 dark:text-slate-400 mb-1 uppercase tracking-wider">GENERAL MANAGER:</label>
+                                  <input
+                                    type="text"
+                                    value={formData.approvedGeneralManager || ''}
+                                    onChange={(e) => setFormData({ ...formData, approvedGeneralManager: e.target.value })}
+                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
+                                    disabled={isViewOnly}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-50 dark:text-slate-400 mb-1 uppercase tracking-wider">ASST. MANAGER:</label>
+                                  <input
+                                    type="text"
+                                    value={formData.approvedAsstManager || ''}
+                                    onChange={(e) => setFormData({ ...formData, approvedAsstManager: e.target.value })}
+                                    className="w-full px-2 pt-2 pb-1 border-b-2 border-slate-400 focus:border-indigo-600 focus:outline-none bg-transparent"
+                                    disabled={isViewOnly}
+                                  />
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  <div className="flex gap-3 pt-4 border-t border-slate-100 mt-6">
-                    <button
-                      type="button"
-                      onClick={closeModal}
-                      className="px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all"
-                    >
-                      {isViewOnly ? 'Close' : 'Cancel'}
-                    </button>
-                    <div className="flex-1 flex justify-end gap-3">
-                      {(!isViewOnly && currentStep > 1) && (
-                        <button
-                          type="button"
-                          onClick={() => setCurrentStep(currentStep - 1)}
-                          className="px-6 py-3 border-2 border-indigo-600 text-indigo-600 rounded-xl font-semibold hover:bg-indigo-50 transition-all"
-                        >
-                          Previous
-                        </button>
-                      )}
-                      {!isViewOnly && (
-                        <button
-                          type="submit"
-                          disabled={isProcessing}
-                          className={`btn-primary px-8 py-3 text-white rounded-xl font-semibold shadow-lg transition-all ${isProcessing ? 'opacity-70 cursor-not-allowed bg-slate-400' : ''}`}
-                        >
-                          {isProcessing ? (
-                            <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                              Processing...
-                            </div>
-                          ) : (
-                            currentStep === 6
-                              ? (isEditing ? 'Update Employee' : 'Save Employee')
-                              : 'Next'
-                          )}
-                        </button>
-                      )}
+                    <div className="flex gap-3 pt-4 border-t border-slate-100 mt-6">
+                      <button
+                        type="button"
+                        onClick={closeModal}
+                        className="px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all"
+                      >
+                        {isViewOnly ? 'Close' : 'Cancel'}
+                      </button>
+                      <div className="flex-1 flex justify-end gap-3">
+                        {(!isViewOnly && currentStep > 1) && (
+                          <button
+                            type="button"
+                            onClick={() => setCurrentStep(currentStep - 1)}
+                            className="px-6 py-3 border-2 border-indigo-600 text-indigo-600 rounded-xl font-semibold hover:bg-indigo-50 transition-all"
+                          >
+                            Previous
+                          </button>
+                        )}
+                        {!isViewOnly && (
+                          <button
+                            type="submit"
+                            disabled={isProcessing}
+                            className={`btn-primary px-8 py-3 text-white rounded-xl font-semibold shadow-lg transition-all ${isProcessing ? 'opacity-70 cursor-not-allowed bg-slate-400' : ''}`}
+                          >
+                            {isProcessing ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Processing...
+                              </div>
+                            ) : (
+                              currentStep === 6
+                                ? (isEditing ? 'Update Employee' : 'Save Employee')
+                                : 'Next'
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
+                  </form>
+                </div>
+              </div>
+            )
+          )
+        }
+
+        {/* Password Confirmation Modal */}
+        {showPwConfirmModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={() => setShowPwConfirmModal(false)} />
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-6 animate-in zoom-in-95 duration-200 border-2 border-slate-100 dark:border-slate-800">
+              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto border-4 border-indigo-100">
+                <UserCheck className="w-6 h-6 text-indigo-600" />
+              </div>
+
+              <div className="text-center space-y-2">
+                <h3 className="text-xl font-black text-slate-800 dark:text-white">Update Password?</h3>
+                <p className="text-sm font-medium text-slate-500">
+                  Are you sure you want to change your password? You will need to use the new password next time you log in.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowPwConfirmModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-white border-2 border-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 hover:border-slate-200 transition-all uppercase tracking-wide"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePasswordChange}
+                  className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all uppercase tracking-wide"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {
+          showDeleteModal && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] card-enter">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 border-2 border-slate-100 dark:border-slate-800">
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
+                    <Trash2 className="w-8 h-8" />
                   </div>
-                </form>
+
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-white">Confirm Delete</h3>
+                    <p className="text-slate-600">
+                      Are you sure you want to delete <span className="font-bold text-slate-800">"{deleteTarget?.firstName} {deleteTarget?.lastName}"</span>?
+                      This action cannot be undone.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 w-full pt-4">
+                    <button
+                      onClick={() => setShowDeleteModal(false)}
+                      className="flex-1 px-4 py-2 border-2 border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmDelete}
+                      className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl font-semibold shadow-lg hover:bg-red-600 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )
-        )
-      }
+        }
+        {/* Sign Out Confirmation Modal */}
+        {
+          showSignOutModal && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-in fade-in duration-300">
+              <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl max-w-sm w-full p-8 border border-slate-100 dark:border-slate-800 card-enter">
+                <div className="flex flex-col items-center text-center space-y-6">
+                  <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 ring-8 ring-red-50/50">
+                    <LogOut className="w-10 h-10" />
+                  </div>
 
-      {/* Delete Confirmation Modal */}
-      {
-        showDeleteModal && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] card-enter">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 border-2 border-slate-100">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
-                  <Trash2 className="w-8 h-8" />
-                </div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Sign Out</h3>
+                    <p className="text-slate-500 font-medium">
+                      Are you sure you want to sign out? You will need to login again to access your dashboard.
+                    </p>
+                  </div>
 
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-slate-800">Confirm Delete</h3>
-                  <p className="text-slate-600">
-                    Are you sure you want to delete <span className="font-bold text-slate-800">"{deleteTarget?.firstName} {deleteTarget?.lastName}"</span>?
-                    This action cannot be undone.
-                  </p>
-                </div>
-
-                <div className="flex gap-3 w-full pt-4">
-                  <button
-                    onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 px-4 py-2 border-2 border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmDelete}
-                    className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl font-semibold shadow-lg hover:bg-red-600 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
+                  <div className="flex gap-4 w-full pt-4">
+                    <button
+                      onClick={() => setShowSignOutModal(false)}
+                      className="flex-1 px-6 py-3 border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={onLogout}
+                      className="flex-1 px-6 py-3 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-red-200 hover:bg-red-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )
-      }
-      {/* Sign Out Confirmation Modal */}
-      {
-        showSignOutModal && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-in fade-in duration-300">
-            <div className="bg-white rounded-[2rem] shadow-2xl max-w-sm w-full p-8 border border-slate-100 card-enter">
-              <div className="flex flex-col items-center text-center space-y-6">
-                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 ring-8 ring-red-50/50">
-                  <LogOut className="w-10 h-10" />
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-black text-slate-800 tracking-tight">Sign Out</h3>
-                  <p className="text-slate-500 font-medium">
-                    Are you sure you want to sign out? You will need to login again to access your dashboard.
-                  </p>
-                </div>
-
-                <div className="flex gap-4 w-full pt-4">
-                  <button
-                    onClick={() => setShowSignOutModal(false)}
-                    className="flex-1 px-6 py-3 border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={onLogout}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-red-200 hover:bg-red-700 transition-all active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      }
-      {/* Profile Picture Expansion Modal */}
-      {
-        expandedImage && (
-          <div
-            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300 animate-in fade-in zoom-in"
-            onClick={() => setExpandedImage(null)}
-          >
-            <button
-              className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                setExpandedImage(null);
-              }}
-            >
-              <X className="w-6 h-6" />
-            </button>
-
+          )
+        }
+        {/* Profile Picture Expansion Modal */}
+        {
+          expandedImage && (
             <div
-              className="relative max-w-3xl w-full aspect-square bg-slate-800 rounded-[5px] overflow-hidden shadow-2xl border-4 border-white/10"
-              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300 animate-in fade-in zoom-in"
+              onClick={() => setExpandedImage(null)}
             >
-              <img
-                src={expandedImage}
-                className="w-full h-full object-contain"
-                alt="Expanded Profile"
-              />
+              <button
+                className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedImage(null);
+                }}
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div
+                className="relative max-w-3xl w-full aspect-square bg-slate-800 rounded-[5px] overflow-hidden shadow-2xl border-4 border-white/10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <img
+                  src={expandedImage}
+                  className="w-full h-full object-contain"
+                  alt="Expanded Profile"
+                />
+              </div>
             </div>
-          </div>
-        )
-      }
-    </div >
+          )
+        }
+      </div >
+    </div>
   );
 };
 
