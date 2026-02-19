@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Building2, UserCheck, Search, Plus, Pencil, Trash2, X, Menu, ChevronLeft, ChevronRight, Eye, EyeOff, Maximize2, Minimize2, Camera, User, Upload, LogOut, ClipboardList, Settings } from 'lucide-react';
+import { Users, Building2, UserCheck, Search, Plus, Pencil, Trash2, X, Menu, ChevronLeft, ChevronRight, Eye, EyeOff, Maximize2, Minimize2, Camera, User, Upload, LogOut, ClipboardList, Settings, ChevronDown } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import PrintableProfileView from './PrintableProfileView';
 import Inventory from './Inventory';
@@ -336,6 +336,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
   const [showPwNew, setShowPwNew] = useState(false);
   const [showPwConfirm, setShowPwConfirm] = useState(false);
   const [showPwConfirmModal, setShowPwConfirmModal] = useState(false);
+  const [inventoryDropdownOpen, setInventoryDropdownOpen] = useState(false);
 
   const totalEmployees = employees.length;
   const activeEmployees = employees.filter(emp => emp.status === 'Active').length;
@@ -1557,6 +1558,24 @@ const EmployeeDashboard = ({ user, onLogout }) => {
         .hover-lift:hover .icon-wrapper {
           transform: rotate(5deg) scale(1.1);
         }
+
+        .dropdown-container {
+          display: grid;
+          grid-template-rows: 0fr;
+          opacity: 0;
+          transition: grid-template-rows 0.3s ease-out, opacity 0.3s ease-out, margin 0.3s ease-out;
+          overflow: hidden;
+        }
+
+        .dropdown-container.open {
+          grid-template-rows: 1fr;
+          opacity: 1;
+          margin-top: 0.5rem;
+        }
+
+        .dropdown-content {
+          min-height: 0;
+        }
       `}</style>
 
         <div className="flex min-h-screen">
@@ -1618,16 +1637,48 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                 {sidebarOpen && <span className="font-semibold">Employees</span>}
               </button>
 
-              <button
-                onClick={() => setCurrentPage('inventory')}
-                className={`sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentPage === 'inventory'
-                  ? 'active bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                  }`}
-              >
-                <ClipboardList className={`w-5 h-5 ${sidebarOpen ? '' : 'mx-auto'}`} />
-                {sidebarOpen && <span className="font-semibold">Inventory</span>}
-              </button>
+              <div>
+                <button
+                  onClick={() => setInventoryDropdownOpen(!inventoryDropdownOpen)}
+                  className={`sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentPage.startsWith('inventory')
+                    ? 'active bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 text-indigo-600 dark:text-indigo-400'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                >
+                  <ClipboardList className={`w-5 h-5 ${sidebarOpen ? '' : 'mx-auto'}`} />
+                  {sidebarOpen && (
+                    <div className="flex items-center justify-between flex-1">
+                      <span className="font-semibold">Inventory</span>
+                      <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${inventoryDropdownOpen ? 'rotate-180' : ''}`} />
+                    </div>
+                  )}
+                </button>
+
+                {sidebarOpen && (
+                  <div className={`dropdown-container ${inventoryDropdownOpen ? 'open' : ''} ml-6 pl-4 border-l-2 border-slate-100 dark:border-slate-800`}>
+                    <div className="dropdown-content space-y-1">
+                      <button
+                        onClick={() => setCurrentPage('inventory_equipment')}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${currentPage === 'inventory_equipment'
+                          ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 font-bold'
+                          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700'
+                          }`}
+                      >
+                        Equipment/Tools/Electronics
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage('inventory_consumables')}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${currentPage === 'inventory_consumables'
+                          ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 font-bold'
+                          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700'
+                          }`}
+                      >
+                        Consumables
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </nav>
 
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-1">
@@ -1653,8 +1704,19 @@ const EmployeeDashboard = ({ user, onLogout }) => {
 
           {/* Main Content */}
           <main className="flex-1 overflow-auto bg-slate-50/50 dark:bg-slate-950 p-8">
-            {currentPage === 'inventory' ? (
-              <Inventory />
+            {currentPage.startsWith('inventory') ? (
+              <Inventory
+                title={
+                  currentPage === 'inventory_equipment'
+                    ? "Equipment/Tools/Electronics Inventory"
+                    : "Consumables Inventory"
+                }
+                tableName={
+                  currentPage === 'inventory_equipment'
+                    ? "inventory"
+                    : "consumables_inventory"
+                }
+              />
             ) : currentPage === 'settings' ? (
               <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500">
                 <div>
