@@ -1658,6 +1658,15 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                   <div className={`dropdown-container ${inventoryDropdownOpen ? 'open' : ''} ml-6 pl-4 border-l-2 border-slate-100 dark:border-slate-800`}>
                     <div className="dropdown-content space-y-1">
                       <button
+                        onClick={() => setCurrentPage('inventory_fixed_assets')}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${currentPage === 'inventory_fixed_assets'
+                          ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 font-bold'
+                          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700'
+                          }`}
+                      >
+                        Fixed Assets
+                      </button>
+                      <button
                         onClick={() => setCurrentPage('inventory_equipment')}
                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${currentPage === 'inventory_equipment'
                           ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 font-bold'
@@ -1706,15 +1715,19 @@ const EmployeeDashboard = ({ user, onLogout }) => {
           <main className="flex-1 overflow-auto bg-slate-50/50 dark:bg-slate-950 p-8">
             {currentPage.startsWith('inventory') ? (
               <Inventory
-                title={
-                  currentPage === 'inventory_equipment'
-                    ? "Equipment/Tools/Electronics Inventory"
-                    : "Consumables Inventory"
-                }
                 tableName={
                   currentPage === 'inventory_equipment'
                     ? "inventory"
-                    : "consumables_inventory"
+                    : currentPage === 'inventory_fixed_assets'
+                      ? "fixed_assets_inventory"
+                      : "consumables_inventory"
+                }
+                title={
+                  currentPage === 'inventory_equipment'
+                    ? "Equipment/Tools/Electronics Inventory"
+                    : currentPage === 'inventory_fixed_assets'
+                      ? "Fixed Assets Inventory"
+                      : "Consumables Inventory"
                 }
               />
             ) : currentPage === 'settings' ? (

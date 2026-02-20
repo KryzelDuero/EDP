@@ -75,29 +75,36 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
         description: item.description || ''
     });
 
-    const mapToDB = (item) => ({
-        id: item.id,
-        name: item.name,
-        model: item.model || null,
-        manufacturer: item.manufacturer || null,
-        serial: item.serial || null,
-        barcode: item.barcode || null,
-        status: item.status || 'Available',
-        location: item.location || null,
-        condition: item.condition || null,
-        type: item.type || null,
-        last_adjust: item.lastAdjust || null,
-        notes: item.notes || null,
-        checked_out_date: item.checkedOutDate || null,
-        return_due: item.returnDue || null,
-        original_cost: item.originalCost === '' ? null : item.originalCost,
-        current_value: item.currentValue === '' ? null : item.currentValue,
-        image_url: item.imageUrl || null,
-        activity: Array.isArray(item.activity) ? item.activity : [],
-        checked_out_to: item.checkedOutTo || null,
-        quantity: item.quantity || null,
-        description: item.description || null
-    });
+    const mapToDB = (item) => {
+        const payload = {
+            name: item.name,
+            model: item.model || null,
+            manufacturer: item.manufacturer || null,
+            serial: item.serial || null,
+            barcode: item.barcode || null,
+            status: item.status || 'Available',
+            location: item.location || null,
+            condition: item.condition || null,
+            type: item.type || null,
+            last_adjust: item.lastAdjust || null,
+            notes: item.notes || null,
+            checked_out_date: item.checkedOutDate || null,
+            return_due: item.returnDue || null,
+            original_cost: item.originalCost === '' ? null : item.originalCost,
+            current_value: item.currentValue === '' ? null : item.currentValue,
+            image_url: item.imageUrl || null,
+            activity: Array.isArray(item.activity) ? item.activity : [],
+            checked_out_to: item.checkedOutTo || null,
+            quantity: item.quantity || null,
+            description: item.description || null
+        };
+
+        if (item.id) {
+            payload.id = item.id;
+        }
+
+        return payload;
+    };
 
     const fetchAssets = async () => {
         try {
@@ -137,7 +144,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
     };
 
     const getStatusColor = (status, asset) => {
-        const effectiveStatus = (asset?.quantity === 0 && tableName === 'consumables_inventory') ? 'Out of Stock' : status;
+        const effectiveStatus = (asset?.quantity === 0 && isConsumables) ? 'Out of Stock' : status;
         switch (effectiveStatus) {
             case 'Available': return 'text-emerald-600';
             case 'Checked Out': return 'text-blue-600';
@@ -162,7 +169,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
             if (newQuantity > 0) {
                 newStatus = selectedAsset.status; // Keep existing status (likely 'Available')
             } else {
-                newStatus = 'Out of Stock';
+                newStatus = isConsumables ? 'Available' : 'Out of Stock';
             }
         }
 
@@ -370,7 +377,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
 
     const handleAddSubmit = async (e) => {
         e.preventDefault();
-        const newAsset = {
+        const newAssetData = {
             ...newAssetFormData,
             id: (Math.floor(Math.random() * 9000000) + 1000000).toString(),
             originalCost: newAssetFormData.originalCost === '' ? 0 : Number(newAssetFormData.originalCost),
@@ -390,14 +397,18 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
         };
 
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from(tableName)
-                .insert([mapToDB(newAsset)]);
+                .insert([mapToDB(newAssetData)])
+                .select();
 
             if (error) throw error;
 
-            setAssets(prev => [newAsset, ...prev]);
-            setShowAddModal(false);
+            if (data && data.length > 0) {
+                const createdAsset = mapFromDB(data[0]);
+                setAssets(prev => [createdAsset, ...prev]);
+                setShowAddModal(false);
+            }
         } catch (error) {
             console.error('Error adding asset:', error);
             alert(`Failed to add unit: ${error.message || 'Unknown error'}`);
@@ -743,10 +754,10 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                         <div className={`w-20 h-20 rounded-3xl flex items-center justify-center border-2 shadow-inner transition-all duration-500 bg-white border-slate-100`}>
                                             <Package className="w-10 h-10 text-indigo-600 transition-transform hover:scale-110" />
                                         </div>
-                                        <div>
-                                            <div className="flex items-center gap-3 mb-1">
-                                                <h2 className="text-3xl font-black text-slate-800 tracking-tight">{selectedAsset.name}</h2>
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ring-4 ring-white shadow-sm ${getStatusColor(selectedAsset.status)}`}>
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-3 mb-1">
+                                                <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-tight">{selectedAsset.name}</h2>
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ring-4 ring-white shadow-sm flex-shrink-0 ${getStatusColor(selectedAsset.status)}`}>
                                                     {selectedAsset.status}
                                                 </span>
                                             </div>
@@ -757,7 +768,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 flex-shrink-0">
                                         {isEditing ? (
                                             <>
                                                 <button
@@ -851,14 +862,14 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                         />
                                                         <InfoField
                                                             label="Quantity"
-                                                            value={isEditing ? editFormData.quantity : selectedAsset.quantity}
+                                                            value={isEditing ? editFormData.quantity : (selectedAsset.quantity === 0 ? '0' : selectedAsset.quantity)}
                                                             editable={isEditing}
                                                             onChange={(val) => setEditFormData({ ...editFormData, quantity: val })}
                                                             type="number"
                                                         />
                                                         <InfoField
                                                             label="Status"
-                                                            value={isEditing ? editFormData.status : selectedAsset.status}
+                                                            value={isEditing ? editFormData.status : (selectedAsset.quantity === 0 && isConsumables ? 'Out of Stock' : selectedAsset.status)}
                                                             editable={isEditing}
                                                             onChange={(val) => setEditFormData({ ...editFormData, status: val })}
                                                             options={['Available', 'Checked Out', 'Broken', 'In Repair']}
@@ -1006,20 +1017,22 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                                     <p className="text-xs text-slate-400 font-bold uppercase tracking-tight">{selectedAsset.checkedOutTo?.jobsite}</p>
                                                                 </div>
                                                             </div>
-                                                            <button
-                                                                onClick={handleReturnSubmit}
-                                                                disabled={selectedAsset.status === 'Out of Stock' || (selectedAsset.quantity === 0 && tableName === 'consumables_inventory')}
-                                                                className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group/btn shadow-lg ${selectedAsset.status === 'Out of Stock' || (selectedAsset.quantity === 0 && tableName === 'consumables_inventory')
-                                                                    ? 'bg-rose-600 text-white cursor-not-allowed border-none shadow-rose-200'
-                                                                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
-                                                                    }`}
-                                                            >
-                                                                <CheckCircle2 className="w-3.5 h-3.5 group-hover/btn:scale-110 transition-transform" />
-                                                                {selectedAsset.status === 'Out of Stock' || (selectedAsset.quantity === 0 && tableName === 'consumables_inventory') ? 'Out of Stock' : 'Mark as Returned'}
-                                                            </button>
+                                                            <div className="bg-white/50 p-6 rounded-[2rem] border border-slate-100 ring-1 ring-slate-900/5 backdrop-blur-sm">
+                                                                <button
+                                                                    onClick={handleReturnSubmit}
+                                                                    disabled={selectedAsset.status === 'Out of Stock' || (selectedAsset.quantity === 0 && isConsumables)}
+                                                                    className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group/btn shadow-lg ${selectedAsset.status === 'Out of Stock' || (selectedAsset.quantity === 0 && isConsumables)
+                                                                        ? 'bg-rose-600 text-white cursor-not-allowed border-none shadow-rose-200'
+                                                                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
+                                                                        }`}
+                                                                >
+                                                                    <CheckCircle2 className="w-3.5 h-3.5 group-hover/btn:scale-110 transition-transform" />
+                                                                    {selectedAsset.status === 'Out of Stock' || (selectedAsset.quantity === 0 && isConsumables) ? 'Out of Stock' : 'Mark as Returned'}
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     ) : (() => {
-                                                        const isOutOfStock = selectedAsset.quantity === 0 && tableName === 'consumables_inventory';
+                                                        const isOutOfStock = selectedAsset.quantity === 0 && isConsumables;
                                                         const isUnavailable =
                                                             ['In Repair', 'Broken', 'Out of Stock'].includes(selectedAsset.status) ||
                                                             ['Critical', 'Broken', 'Poor'].includes(selectedAsset.condition) ||
@@ -1605,11 +1618,11 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                             {/* Section: General */}
                                             <div className="space-y-4">
                                                 <h3 className="text-[11px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
-                                                    <div className="w-1 h-3 bg-indigo-600 rounded-full" /> {tableName === 'consumables_inventory' ? 'Item Details' : 'Unit Details'}
+                                                    <div className="w-1 h-3 bg-indigo-600 rounded-full" /> {isConsumables ? 'Item Details' : 'Unit Details'}
                                                 </h3>
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{tableName === 'consumables_inventory' ? 'Item Name' : 'Unit Name'}</label>
+                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{isConsumables ? 'Item Name' : 'Unit Name'}</label>
                                                         <input
                                                             type="text"
                                                             required
@@ -1784,7 +1797,7 @@ const InfoField = ({ label, value, editable, onChange, type = "text", options })
                 />
             )
         ) : (
-            <span className="text-slate-700 font-black">{value || '-'}</span>
+            <span className="text-slate-700 font-black text-right flex-1 ml-4">{value || '-'}</span>
         )}
     </div>
 );
