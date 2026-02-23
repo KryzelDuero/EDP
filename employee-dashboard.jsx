@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Building2, UserCheck, Search, Plus, Pencil, Trash2, X, Menu, ChevronLeft, ChevronRight, Eye, EyeOff, Maximize2, Minimize2, Camera, User, Upload, LogOut, ClipboardList, Settings, ChevronDown } from 'lucide-react';
+import { Users, Building2, UserCheck, Search, Plus, Pencil, Trash2, X, Menu, ChevronLeft, ChevronRight, Eye, EyeOff, Maximize2, Minimize2, Camera, User, Upload, LogOut, ClipboardList, Settings, ChevronDown, Sun, Moon } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import PrintableProfileView from './PrintableProfileView';
 import Inventory from './Inventory';
@@ -337,6 +337,19 @@ const EmployeeDashboard = ({ user, onLogout }) => {
   const [showPwConfirm, setShowPwConfirm] = useState(false);
   const [showPwConfirmModal, setShowPwConfirmModal] = useState(false);
   const [inventoryDropdownOpen, setInventoryDropdownOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('edp_theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('edp_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('edp_theme', 'light');
+    }
+  }, [isDarkMode]);
 
   const totalEmployees = employees.length;
   const activeEmployees = employees.filter(emp => emp.status === 'Active').length;
@@ -1676,14 +1689,15 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                 <div>
                   <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100 mb-1">Settings</h1>
                   <p className="text-slate-500 dark:text-slate-400">Manage your account and preferences.</p>
+
                 </div>
 
-                <div className="grid grid-cols-2 gap-6 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                   {/* Section 1: Change Password */}
                   <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
                     <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                      <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center">
-                        <Settings className="w-4 h-4 text-indigo-600" />
+                      <div className="w-9 h-9 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl flex items-center justify-center">
+                        <Settings className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                       </div>
                       <div>
                         <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">Change Password</h2>
@@ -1692,7 +1706,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                     </div>
                     <form onSubmit={handlePasswordSubmit} className="px-8 py-6 space-y-5">
                       {pwMessage && (
-                        <div className={`px-4 py-3 rounded-xl text-sm font-medium ${pwMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'}`}>
+                        <div className={`px-4 py-3 rounded-xl text-sm font-medium ${pwMessage.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20' : 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-100 dark:border-rose-500/20'}`}>
                           {pwMessage.text}
                         </div>
                       )}
@@ -1707,7 +1721,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                             className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
                             placeholder="Enter current password"
                           />
-                          <button type="button" onClick={() => setShowPwCurrent(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                          <button type="button" onClick={() => setShowPwCurrent(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                             {showPwCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
@@ -1723,7 +1737,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                             className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
                             placeholder="Enter new password"
                           />
-                          <button type="button" onClick={() => setShowPwNew(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                          <button type="button" onClick={() => setShowPwNew(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                             {showPwNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
@@ -1739,7 +1753,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                             className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
                             placeholder="Confirm new password"
                           />
-                          <button type="button" onClick={() => setShowPwConfirm(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                          <button type="button" onClick={() => setShowPwConfirm(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                             {showPwConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
@@ -1748,7 +1762,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                         <button
                           type="submit"
                           disabled={pwLoading}
-                          className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-indigo-100"
+                          className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20"
                         >
                           {pwLoading ? (
                             <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating...</>
@@ -1758,6 +1772,49 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                     </form>
                   </div>
 
+                  {/* Section 2: Theme Preferences */}
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+                    <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                      <div className="w-9 h-9 bg-purple-50 dark:bg-purple-500/10 rounded-xl flex items-center justify-center">
+                        <Moon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">Theme Preferences</h2>
+                        <p className="text-xs text-slate-400">Choose your preferred appearance</p>
+                      </div>
+                    </div>
+                    <div className="px-8 py-6 space-y-5">
+                      <div className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer" onClick={() => setIsDarkMode(!isDarkMode)}>
+                        <div className="flex items-center gap-4">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isDarkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                            {isDarkMode ? <Moon className="w-5 h-5 text-white" /> : <Sun className="w-5 h-5 text-slate-700" />}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">Dark Mode</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Reduce eye strain in low light</p>
+                          </div>
+                        </div>
+
+                        <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                          <input
+                            type="checkbox"
+                            name="toggle"
+                            id="toggle-dark-mode"
+                            checked={isDarkMode}
+                            onChange={() => setIsDarkMode(!isDarkMode)}
+                            className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-200 dark:border-indigo-600 transition-transform duration-300 ease-in-out"
+                            style={{
+                              transform: isDarkMode ? 'translateX(100%)' : 'translateX(0)',
+                            }}
+                          />
+                          <label
+                            htmlFor="toggle-dark-mode"
+                            className={`toggle-label block overflow-hidden h-6 rounded-full bg-slate-200 cursor-pointer transition-colors duration-300 ${isDarkMode ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                          ></label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                 </div>
               </div>
@@ -2083,7 +2140,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                                     </button>
                                     <button
                                       onClick={() => handleViewEmployee(employee)}
-                                      className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-all"
+                                      className="p-2 text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-lg transition-all"
                                       title="View Details"
                                     >
                                       <Eye className="w-4 h-4" />
@@ -2105,7 +2162,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                       {/* Mobile Cards */}
                       <div className="lg:hidden divide-y divide-slate-100">
                         {currentItems.map((employee) => (
-                          <div key={employee.id} className="p-6 hover:bg-slate-50 transition-all">
+                          <div key={employee.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all">
                             <div className="flex items-start gap-4 mb-4">
                               <div
                                 className="w-20 h-20 rounded-[5px] bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0 cursor-pointer shadow-sm"
@@ -4080,7 +4137,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                       <button
                         type="button"
                         onClick={closeModal}
-                        className="px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all"
+                        className="px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
                       >
                         {isViewOnly ? 'Close' : 'Cancel'}
                       </button>
@@ -4140,7 +4197,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setShowPwConfirmModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-white border-2 border-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 hover:border-slate-200 transition-all uppercase tracking-wide"
+                  className="flex-1 px-4 py-2.5 bg-white border-2 border-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:border-slate-200 transition-all uppercase tracking-wide"
                 >
                   Cancel
                 </button>
@@ -4176,7 +4233,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                   <div className="flex gap-3 w-full pt-4">
                     <button
                       onClick={() => setShowDeleteModal(false)}
-                      className="flex-1 px-4 py-2 border-2 border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all"
+                      className="flex-1 px-4 py-2 border-2 border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
                     >
                       Cancel
                     </button>
@@ -4213,7 +4270,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                   <div className="flex gap-4 w-full pt-4">
                     <button
                       onClick={() => setShowSignOutModal(false)}
-                      className="flex-1 px-6 py-3 border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95"
+                      className="flex-1 px-6 py-3 border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all active:scale-95"
                     >
                       Cancel
                     </button>

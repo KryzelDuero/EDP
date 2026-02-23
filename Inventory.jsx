@@ -178,12 +178,12 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
     const getStatusColor = (status, asset) => {
         const effectiveStatus = (asset?.quantity === 0 && isConsumables) ? 'Out of Stock' : status;
         switch (effectiveStatus) {
-            case 'Available': return 'text-emerald-600';
+            case 'Available': return 'text-emerald-600 dark:text-emerald-400';
             case 'Checked Out': return 'text-blue-600';
-            case 'Out of Stock': return 'text-rose-600';
+            case 'Out of Stock': return 'text-rose-600 dark:text-rose-400';
             case 'Broken': return 'text-red-600';
             case 'In Repair': return 'text-orange-600';
-            default: return 'text-slate-600';
+            default: return 'text-slate-600 dark:text-slate-300';
         }
     };
 
@@ -493,12 +493,12 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
                 <div className="relative">
-                    <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-                    <Package className="w-6 h-6 text-indigo-600 absolute inset-0 m-auto animate-pulse" />
+                    <div className="w-16 h-16 border-4 border-indigo-100 dark:border-indigo-500/20 border-t-indigo-600 rounded-full animate-spin" />
+                    <Package className="w-6 h-6 text-indigo-600 dark:text-indigo-400 absolute inset-0 m-auto animate-pulse" />
                 </div>
                 <div className="text-center">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Synchronizing Inventory</h3>
-                    <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">Connecting to Secure Database...</p>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Synchronizing Inventory</h3>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-tight">Connecting to Secure Database...</p>
                 </div>
             </div>
         );
@@ -507,12 +507,12 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
     if (fetchError) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4 p-8">
-                <div className="w-16 h-16 bg-rose-50 border-2 border-rose-100 rounded-3xl flex items-center justify-center">
-                    <AlertCircle className="w-8 h-8 text-rose-600" />
+                <div className="w-16 h-16 bg-rose-50 dark:bg-rose-500/10 border-2 border-rose-100 rounded-3xl flex items-center justify-center">
+                    <AlertCircle className="w-8 h-8 text-rose-600 dark:text-rose-400" />
                 </div>
                 <div className="text-center max-w-lg">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">Database Error</h3>
-                    <p className="text-xs font-mono text-rose-600 bg-rose-50 border border-rose-100 rounded-xl p-4 text-left break-all">{fetchError}</p>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">Database Error</h3>
+                    <p className="text-xs font-mono text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 rounded-xl p-4 text-left break-all">{fetchError}</p>
                     <button
                         onClick={fetchAssets}
                         className="mt-4 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all"
@@ -529,15 +529,15 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
             <>
                 <div className="space-y-6 animate-in fade-in duration-700">
                     {/* Header section with Stats */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-sm border border-slate-100 ring-1 ring-slate-900/5">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 ring-1 ring-slate-900/5">
                         <div>
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200">
                                     <ClipboardList className="w-6 h-6 text-white" />
                                 </div>
-                                <h1 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h1>
+                                <h1 className="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{title}</h1>
                             </div>
-                            <div className="text-slate-500 mt-2 font-medium flex items-center gap-2">
+                            <div className="text-slate-500 dark:text-slate-400 dark:text-slate-500 mt-2 font-medium flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                 System Active: Tracking {assets.length} institutional units
                             </div>
@@ -555,18 +555,18 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                     {/* Stats Overview */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         {[
-                            { label: 'Total Inventory', value: stats.total, icon: Package, color: 'from-indigo-500 to-violet-600', iconColor: 'text-indigo-600 bg-indigo-50' },
-                            { label: 'Units Ready', value: stats.available, icon: CheckCircle2, color: 'from-emerald-500 to-teal-600', iconColor: 'text-emerald-600 bg-emerald-50' },
+                            { label: 'Total Inventory', value: stats.total, icon: Package, color: 'from-indigo-500 to-violet-600', iconColor: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10' },
+                            { label: 'Units Ready', value: stats.available, icon: CheckCircle2, color: 'from-emerald-500 to-teal-600', iconColor: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' },
                             { label: 'Check out Units', value: stats.checkedOut, icon: Clock, color: 'from-blue-500 to-indigo-600', iconColor: 'text-blue-600 bg-blue-50' },
                             { label: 'Service Units', value: stats.maintenance, icon: Wrench, color: 'from-rose-500 to-red-600', iconColor: 'text-red-600 bg-red-50' }
                         ].map((stat, i) => (
-                            <div key={i} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-xl hover:shadow-indigo-500/5 transition-all cursor-default group border-b-4 border-b-transparent hover:border-b-indigo-500">
+                            <div key={i} className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 hover:shadow-xl hover:shadow-indigo-500/5 transition-all cursor-default group border-b-4 border-b-transparent hover:border-b-indigo-500">
                                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${stat.iconColor} group-hover:scale-110 transition-transform shadow-sm`}>
                                     <stat.icon className="w-7 h-7" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{stat.label}</p>
-                                    <p className="text-3xl font-black text-slate-800 tabular-nums">{stat.value.toString().padStart(2, '0')}</p>
+                                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{stat.label}</p>
+                                    <p className="text-3xl font-black text-slate-800 dark:text-slate-100 tabular-nums">{stat.value.toString().padStart(2, '0')}</p>
                                 </div>
                             </div>
                         ))}
@@ -575,13 +575,13 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
                         {/* Main List Column */}
                         <div className="xl:col-span-12">
-                            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden ring-1 ring-slate-900/5">
-                                <div className="p-4 border-b border-slate-100 bg-slate-50/30 flex flex-col md:flex-row gap-4 items-center justify-between">
+                            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden ring-1 ring-slate-900/5">
+                                <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex flex-col md:flex-row gap-4 items-center justify-between">
                                     <div className="flex flex-col md:flex-row items-center gap-4 w-full">
                                         <div className="relative w-full md:w-72">
-                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
                                             <input
-                                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
+                                                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
                                                 placeholder="Search Unit"
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -593,7 +593,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                 <select
                                                     value={statusFilter}
                                                     onChange={(e) => setStatusFilter(e.target.value)}
-                                                    className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer shadow-sm transition-all pr-8"
+                                                    className="w-full appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer shadow-sm transition-all pr-8"
                                                 >
                                                     <option value="All">All Status</option>
                                                     <option value="Available">Available</option>
@@ -602,7 +602,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                     <option value="Broken">Broken</option>
                                                     <option value="In Repair">In Repair</option>
                                                 </select>
-                                                <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none group-hover:text-indigo-500 transition-colors" />
+                                                <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 pointer-events-none group-hover:text-indigo-500 transition-colors" />
                                             </div>
 
                                             {/* Condition Filter */}
@@ -610,7 +610,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                 <select
                                                     value={conditionFilter}
                                                     onChange={(e) => setConditionFilter(e.target.value)}
-                                                    className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer shadow-sm transition-all pr-8"
+                                                    className="w-full appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer shadow-sm transition-all pr-8"
                                                 >
                                                     <option value="All">All Conditions</option>
                                                     <option value="Excellent">Excellent</option>
@@ -619,7 +619,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                     <option value="Critical">Critical</option>
                                                     <option value="Broken">Broken</option>
                                                 </select>
-                                                <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none group-hover:text-indigo-500 transition-colors" />
+                                                <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 pointer-events-none group-hover:text-indigo-500 transition-colors" />
                                             </div>
 
                                             {/* Location Filter */}
@@ -627,7 +627,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                 <select
                                                     value={locationFilter}
                                                     onChange={(e) => setLocationFilter(e.target.value)}
-                                                    className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer shadow-sm transition-all pr-8"
+                                                    className="w-full appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer shadow-sm transition-all pr-8"
                                                 >
                                                     <option value="All">All Locations</option>
                                                     <option value="NPI Plant">NPI Plant</option>
@@ -636,7 +636,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                     <option value="EDP Conference Office">EDP Conference Office</option>
                                                     <option value="EDP Admin Office">EDP Admin Office</option>
                                                 </select>
-                                                <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none group-hover:text-indigo-500 transition-colors" />
+                                                <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 pointer-events-none group-hover:text-indigo-500 transition-colors" />
                                             </div>
                                         </div>
                                     </div>
@@ -645,7 +645,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
                                         <thead>
-                                            <tr className="bg-slate-50/50 text-slate-900 text-sm font-black uppercase tracking-[0.2em] border-b border-slate-100">
+                                            <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-white text-sm font-black uppercase tracking-[0.2em] border-b border-slate-100 dark:border-slate-800">
                                                 <th className="px-6 py-5">Item #</th>
                                                 <th className="px-6 py-5">Unit Name</th>
                                                 <th className="px-6 py-5">Status</th>
@@ -659,14 +659,14 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                             {paginatedAssets.map(asset => (
                                                 <tr
                                                     key={asset.id}
-                                                    className={`hover:bg-indigo-50/40 transition-all cursor-pointer group relative ${selectedAsset?.id === asset.id ? 'bg-indigo-50/60' : ''}`}
+                                                    className={`hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all cursor-pointer group relative ${selectedAsset?.id === asset.id ? 'bg-indigo-50 dark:bg-indigo-500/15' : 'dark:bg-transparent'}`}
                                                     onClick={() => handleAssetClick(asset)}
                                                 >
                                                     <td className="px-6 py-5">
-                                                        <span className="font-mono text-sm font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md w-fit">{asset.id}</span>
+                                                        <span className="font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md w-fit">{asset.id}</span>
                                                     </td>
                                                     <td className="px-6 py-5">
-                                                        <p className="font-bold text-sm text-slate-800 group-hover:text-indigo-600 transition-colors">{asset.name}</p>
+                                                        <p className="font-bold text-sm text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:text-indigo-400 transition-colors">{asset.name}</p>
                                                     </td>
                                                     <td className="px-6 py-5">
                                                         <div className="flex flex-col gap-1.5">
@@ -682,19 +682,19 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-5">
-                                                        <div className="flex items-center gap-2 text-sm text-slate-600 font-bold w-fit">
-                                                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                                        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 font-bold w-fit">
+                                                            <MapPin className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                                                             {asset.location}
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-5">
                                                         <div className="flex flex-col gap-1">
-                                                            <span className={`text-xs font-black uppercase tracking-widest ${asset.condition === 'Excellent' ? 'text-emerald-600' :
-                                                                asset.condition === 'Good' ? 'text-blue-600' : 'text-rose-600'
+                                                            <span className={`text-xs font-black uppercase tracking-widest ${asset.condition === 'Excellent' ? 'text-emerald-600 dark:text-emerald-400' :
+                                                                asset.condition === 'Good' ? 'text-blue-600' : 'text-rose-600 dark:text-rose-400'
                                                                 }`}>
                                                                 {asset.condition}
                                                             </span>
-                                                            <div className="w-20 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                                            <div className="w-20 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                                                                 <div
                                                                     className={`h-full rounded-full ${asset.condition === 'Excellent' ? 'bg-emerald-500 w-full' :
                                                                         asset.condition === 'Good' ? 'bg-blue-500 w-3/4' : 'bg-rose-500 w-1/4'
@@ -704,7 +704,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-5">
-                                                        <span className="text-sm font-bold text-slate-600 tabular-nums">
+                                                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300 tabular-nums">
                                                             {asset.returnDue || '-'}
                                                         </span>
                                                     </td>
@@ -719,7 +719,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                                         detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                                                     }, 100);
                                                                 }}
-                                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm border border-transparent hover:border-slate-200"
+                                                                className="p-2 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 dark:bg-slate-900 rounded-xl transition-all shadow-sm border border-transparent hover:border-slate-200 dark:border-slate-700"
                                                             >
                                                                 <Eye className="w-4 h-4" />
                                                             </button>
@@ -733,12 +733,12 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
 
                                 {/* Pagination Controls */}
                                 {filteredAssets.length > 0 && (
-                                    <div className="px-6 py-6 bg-slate-50/30 border-t border-slate-100 flex flex-col items-center justify-center gap-4">
+                                    <div className="px-6 py-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center gap-4">
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                                 disabled={currentPage === 1}
-                                                className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+                                                className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800/80 dark:bg-slate-800/50 transition-all shadow-sm"
                                             >
                                                 <ChevronLeft className="w-4 h-4" />
                                             </button>
@@ -773,13 +773,13 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                                 onClick={() => setCurrentPage(item)}
                                                                 className={`w-8 h-8 rounded-xl text-xs font-black transition-all ${currentPage === item
                                                                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
-                                                                    : 'bg-white text-slate-400 border border-slate-200 hover:border-indigo-200 hover:text-indigo-600'
+                                                                    : 'bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:border-indigo-500/30 hover:text-indigo-600 dark:text-indigo-400'
                                                                     }`}
                                                             >
                                                                 {item}
                                                             </button>
                                                         ) : (
-                                                            <span key={i} className="px-1 text-slate-400 text-[10px] font-black tracking-widest">...</span>
+                                                            <span key={i} className="px-1 text-slate-400 dark:text-slate-500 text-[10px] font-black tracking-widest">...</span>
                                                         )
                                                     ));
                                                 })()}
@@ -787,13 +787,13 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                             <button
                                                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                                 disabled={currentPage === totalPages}
-                                                className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+                                                className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800/80 dark:bg-slate-800/50 transition-all shadow-sm"
                                             >
                                                 <ChevronRight className="w-4 h-4" />
                                             </button>
                                         </div>
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
-                                            Showing <span className="text-indigo-600">{(currentPage - 1) * itemsPerPage + 1}</span> - <span className="text-indigo-600">{Math.min(currentPage * itemsPerPage, filteredAssets.length)}</span> of <span className="text-indigo-600">{filteredAssets.length}</span> units
+                                        <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+                                            Showing <span className="text-indigo-600 dark:text-indigo-400">{(currentPage - 1) * itemsPerPage + 1}</span> - <span className="text-indigo-600 dark:text-indigo-400">{Math.min(currentPage * itemsPerPage, filteredAssets.length)}</span> of <span className="text-indigo-600 dark:text-indigo-400">{filteredAssets.length}</span> units
                                         </div>
                                     </div>
                                 )}
@@ -805,26 +805,26 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                     {selectedAsset && (
                         <div
                             ref={detailsRef}
-                            className="xl:col-span-12 bg-white rounded-[2rem] shadow-xl border border-slate-100 overflow-hidden animate-in slide-in-from-bottom-8 duration-700 ring-1 ring-slate-900/5 mt-4"
+                            className="xl:col-span-12 bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-in slide-in-from-bottom-8 duration-700 ring-1 ring-slate-900/5 mt-4"
                         >
                             {/* Panel Header */}
-                            <div className="p-8 border-b border-slate-100 bg-slate-50/30">
+                            <div className="p-8 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
                                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                                     <div className="flex items-center gap-6">
-                                        <div className={`w-20 h-20 rounded-3xl flex items-center justify-center border-2 shadow-inner transition-all duration-500 bg-white border-slate-100`}>
-                                            <Package className="w-10 h-10 text-indigo-600 transition-transform hover:scale-110" />
+                                        <div className={`w-20 h-20 rounded-3xl flex items-center justify-center border-2 shadow-inner transition-all duration-500 bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800`}>
+                                            <Package className="w-10 h-10 text-indigo-600 dark:text-indigo-400 transition-transform hover:scale-110" />
                                         </div>
                                         <div className="min-w-0">
                                             <div className="flex flex-wrap items-center gap-3 mb-1">
-                                                <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-tight">{selectedAsset.name}</h2>
+                                                <h2 className="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight leading-tight">{selectedAsset.name}</h2>
                                                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ring-4 ring-white shadow-sm flex-shrink-0 ${getStatusColor(selectedAsset.status)}`}>
                                                     {selectedAsset.status}
                                                 </span>
                                             </div>
-                                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs flex items-center gap-2">
-                                                Unit Serial: <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md font-mono">{selectedAsset.serial}</span>
+                                            <p className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest text-xs flex items-center gap-2">
+                                                Unit Serial: <span className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md font-mono">{selectedAsset.serial}</span>
                                                 <span className="text-slate-200">|</span>
-                                                Model: <span className="text-slate-600">{selectedAsset.model}</span>
+                                                Model: <span className="text-slate-600 dark:text-slate-300">{selectedAsset.model}</span>
                                             </p>
                                         </div>
                                     </div>
@@ -838,7 +838,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                 </button>
                                                 <button
                                                     onClick={handleCancelEdit}
-                                                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all border border-slate-200">
+                                                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700">
                                                     <X className="w-4 h-4" /> Cancel
                                                 </button>
                                             </>
@@ -846,12 +846,12 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                             <>
                                                 <button
                                                     onClick={handleEditClick}
-                                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-all border border-indigo-100">
+                                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-all border border-indigo-100 dark:border-indigo-500/20">
                                                     <Pencil className="w-4 h-4" /> Edit Unit
                                                 </button>
                                                 <button
                                                     onClick={handleDeleteClick}
-                                                    className="p-2.5 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-all border border-rose-100">
+                                                    className="p-2.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-100 transition-all border border-rose-100">
                                                     <Trash2 className="w-5 h-5" />
                                                 </button>
                                             </>
@@ -869,7 +869,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                         <button
                                             key={tab.id}
                                             onClick={() => setActiveTab(tab.id)}
-                                            className={`flex items-center gap-2 pb-4 text-sm font-bold transition-all relative ${activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                                            className={`flex items-center gap-2 pb-4 text-sm font-bold transition-all relative ${activeTab === tab.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300'
                                                 }`}
                                         >
                                             <tab.icon className="w-4 h-4" />
@@ -888,7 +888,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 animate-in fade-in slide-in-from-left-4 duration-500">
                                         <div className="lg:col-span-8 space-y-8">
                                             <div>
-                                                <h3 className="text-slate-800 font-black text-sm uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                                                <h3 className="text-slate-800 dark:text-slate-100 font-black text-sm uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
                                                     <div className="w-1.5 h-4 bg-indigo-600 rounded-full" />
                                                     General Info
                                                 </h3>
@@ -974,31 +974,31 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                     </div>
                                                 </div>
 
-                                                <div className="bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100 ring-1 ring-slate-900/5 mt-8">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Item Description</label>
+                                                <div className="bg-slate-50 dark:bg-slate-800/60 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 ring-1 ring-slate-900/5 mt-8">
+                                                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-3">Item Description</label>
                                                     {isEditing ? (
                                                         <textarea
-                                                            className="w-full bg-indigo-50/50 border border-indigo-100 rounded-xl px-4 py-3 text-sm font-bold text-indigo-600 outline-none focus:ring-1 focus:ring-indigo-500/30 min-h-[80px] resize-none"
+                                                            className="w-full bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-100 dark:border-indigo-500/20 rounded-xl px-4 py-3 text-sm font-bold text-indigo-600 dark:text-indigo-400 outline-none focus:ring-1 focus:ring-indigo-500/30 min-h-[80px] resize-none"
                                                             value={editFormData.description || ''}
                                                             onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
                                                         />
                                                     ) : (
-                                                        <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                                                        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
                                                             {selectedAsset.description || 'No description provided.'}
                                                         </p>
                                                     )}
                                                 </div>
 
-                                                <div className="bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100 ring-1 ring-slate-900/5 mt-8">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Notes</label>
+                                                <div className="bg-slate-50 dark:bg-slate-800/60 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 ring-1 ring-slate-900/5 mt-8">
+                                                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-3">Notes</label>
                                                     {isEditing ? (
                                                         <textarea
-                                                            className="w-full bg-indigo-50/50 border border-indigo-100 rounded-xl px-4 py-3 text-sm font-bold text-indigo-600 outline-none focus:ring-1 focus:ring-indigo-500/30 min-h-[100px] resize-none"
+                                                            className="w-full bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-100 dark:border-indigo-500/20 rounded-xl px-4 py-3 text-sm font-bold text-indigo-600 dark:text-indigo-400 outline-none focus:ring-1 focus:ring-indigo-500/30 min-h-[100px] resize-none"
                                                             value={editFormData.notes || ''}
                                                             onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
                                                         />
                                                     ) : (
-                                                        <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                                                        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
                                                             {selectedAsset.notes || 'No critical maintenance notes found.'}
                                                         </p>
                                                     )}
@@ -1006,8 +1006,8 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                             </div>
                                         </div>
                                         <div className="lg:col-span-4 space-y-6">
-                                            <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm ring-1 ring-slate-900/5">
-                                                <div className="relative group aspect-square rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center overflow-hidden">
+                                            <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm ring-1 ring-slate-900/5">
+                                                <div className="relative group aspect-square rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center overflow-hidden">
                                                     <input
                                                         type="file"
                                                         ref={fileInputRef}
@@ -1028,7 +1028,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                         <div className="absolute inset-0 bg-indigo-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-6">
                                                             <button
                                                                 onClick={handleImageClick}
-                                                                className="bg-white text-indigo-600 px-4 py-2 rounded-xl font-bold shadow-xl shadow-indigo-900/20 flex items-center gap-2 text-xs">
+                                                                className="bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-xl font-bold shadow-xl shadow-indigo-900/20 flex items-center gap-2 text-xs">
                                                                 <Camera className="w-4 h-4" /> Change Picture
                                                             </button>
                                                         </div>
@@ -1036,8 +1036,8 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                 </div>
 
                                                 <div className={`mt-6 p-5 rounded-2xl border-2 border-dashed transition-all ${['Checked Out', 'Out of Stock'].includes(selectedAsset.status)
-                                                    ? 'bg-blue-50/50 border-blue-200'
-                                                    : 'bg-emerald-50/50 border-emerald-200'
+                                                    ? 'bg-blue-50/50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30'
+                                                    : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30'
                                                     }`}>
                                                     {['Checked Out', 'Out of Stock'].includes(selectedAsset.status) || (selectedAsset.quantity === 0 && tableName === 'consumables_inventory') ? (
                                                         <div className="space-y-4">
@@ -1049,12 +1049,12 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                                                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
                                                                     <User className="w-5 h-5 text-blue-600" />
                                                                 </div>
                                                                 <div className="flex-1">
                                                                     <div className="flex items-center justify-between gap-4">
-                                                                        <p className="text-sm font-black text-slate-800">{selectedAsset.checkedOutTo?.name}</p>
+                                                                        <p className="text-sm font-black text-slate-800 dark:text-slate-100">{selectedAsset.checkedOutTo?.name}</p>
                                                                         <button
                                                                             onClick={() => {
                                                                                 setCheckoutFormData({
@@ -1068,16 +1068,16 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                                                 });
                                                                                 setShowCheckoutModal(true);
                                                                             }}
-                                                                            className="p-1 px-2.5 flex items-center gap-1.5 hover:bg-white text-slate-400 hover:text-indigo-600 rounded-lg transition-all border border-transparent hover:border-slate-200 shadow-sm"
+                                                                            className="p-1 px-2.5 flex items-center gap-1.5 hover:bg-white dark:hover:bg-slate-800 dark:bg-slate-900 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:text-indigo-400 rounded-lg transition-all border border-transparent hover:border-slate-200 dark:border-slate-700 shadow-sm"
                                                                         >
                                                                             <span className="text-[9px] font-black uppercase tracking-widest">Edit</span>
                                                                             <Pencil className="w-3 h-3" />
                                                                         </button>
                                                                     </div>
-                                                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-tight">{selectedAsset.checkedOutTo?.jobsite}</p>
+                                                                    <p className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tight">{selectedAsset.checkedOutTo?.jobsite}</p>
                                                                 </div>
                                                             </div>
-                                                            <div className="bg-white/50 p-6 rounded-[2rem] border border-slate-100 ring-1 ring-slate-900/5 backdrop-blur-sm">
+                                                            <div className="bg-white dark:bg-slate-900/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 ring-1 ring-slate-900/5 backdrop-blur-sm">
                                                                 <button
                                                                     onClick={handleReturnSubmit}
                                                                     disabled={selectedAsset.status === 'Out of Stock' || (selectedAsset.quantity === 0 && isConsumables)}
@@ -1102,13 +1102,13 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                             const unavailableReason = (selectedAsset.status === 'Out of Stock' || isOutOfStock) ? 'Zero Inventory - Out of Stock' : 'Unit Unavailable for Deployment';
                                                             return (
                                                                 <div className="text-center space-y-4 py-2">
-                                                                    <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mx-auto">
-                                                                        <AlertCircle className="w-6 h-6 text-rose-600" />
+                                                                    <div className="w-12 h-12 bg-rose-100 dark:bg-rose-500/20 rounded-full flex items-center justify-center mx-auto">
+                                                                        <AlertCircle className="w-6 h-6 text-rose-600 dark:text-rose-400" />
                                                                     </div>
-                                                                    <p className="text-xs font-black text-rose-600 tracking-wide uppercase px-4">{unavailableReason}</p>
+                                                                    <p className="text-xs font-black text-rose-600 dark:text-rose-400 tracking-wide uppercase px-4">{unavailableReason}</p>
                                                                     <button
                                                                         disabled
-                                                                        className="w-full bg-slate-200 text-slate-400 py-3 rounded-2xl text-xs font-black cursor-not-allowed flex items-center justify-center gap-2"
+                                                                        className="w-full bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 py-3 rounded-2xl text-xs font-black cursor-not-allowed flex items-center justify-center gap-2"
                                                                     >
                                                                         Checkout <ChevronRight className="w-4 h-4" />
                                                                     </button>
@@ -1118,10 +1118,10 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
 
                                                         return (
                                                             <div className="text-center space-y-4 py-2">
-                                                                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
-                                                                    <ShieldCheck className="w-6 h-6 text-emerald-600" />
+                                                                <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
+                                                                    <ShieldCheck className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                                                                 </div>
-                                                                <p className="text-xs font-black text-emerald-600 tracking-wide">UNIT READY FOR DEPLOYMENT</p>
+                                                                <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 tracking-wide">UNIT READY FOR DEPLOYMENT</p>
 
                                                                 <button
                                                                     onClick={() => setActiveTab('history')}
@@ -1145,7 +1145,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                                         });
                                                                         setShowCheckoutModal(true);
                                                                     }}
-                                                                    className="w-full bg-emerald-600 text-white py-3 rounded-2xl text-xs font-black shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+                                                                    className="w-full bg-emerald-600 text-white py-3 rounded-2xl text-xs font-black shadow-lg shadow-emerald-200 dark:shadow-emerald-900/30 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
                                                                 >
                                                                     Checkout <ChevronRight className="w-4 h-4" />
                                                                 </button>
@@ -1162,22 +1162,22 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                     <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
 
                                         <div>
-                                            <h3 className="text-slate-800 font-black text-sm uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                                            <h3 className="text-slate-800 dark:text-slate-100 font-black text-sm uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
                                                 <div className="w-1.5 h-4 bg-indigo-600 rounded-full" />
                                                 Unit Value Summary
                                             </h3>
-                                            <div className="bg-white p-2 rounded-[1.5rem] border-2 border-indigo-900 overflow-hidden shadow-xl max-w-4xl">
+                                            <div className="bg-white dark:bg-slate-900 p-2 rounded-[1.5rem] border-2 border-indigo-900 overflow-hidden shadow-xl max-w-4xl">
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                     <div className="border border-indigo-900 overflow-hidden rounded-lg">
                                                         <div className="grid grid-cols-2 border-b border-indigo-900">
-                                                            <div className="bg-slate-100 px-4 py-3 text-[11px] font-black text-slate-700 border-r border-indigo-900 flex items-center uppercase tracking-wider text-center">Original Cost</div>
-                                                            <div className="bg-white px-4 py-3 text-sm font-mono text-right font-black text-slate-800 flex items-center justify-end tracking-wider">
+                                                            <div className="bg-slate-100 dark:bg-slate-800 px-4 py-3 text-[11px] font-black text-slate-700 dark:text-slate-200 border-r border-indigo-900 flex items-center uppercase tracking-wider text-center">Original Cost</div>
+                                                            <div className="bg-white dark:bg-slate-900 px-4 py-3 text-sm font-mono text-right font-black text-slate-800 dark:text-slate-100 flex items-center justify-end tracking-wider">
                                                                 {isEditing ? (
                                                                     <div className="flex items-center gap-1">
-                                                                        <span className="text-indigo-600 font-bold">₱</span>
+                                                                        <span className="text-indigo-600 dark:text-indigo-400 font-bold">₱</span>
                                                                         <input
                                                                             type="number"
-                                                                            className="w-24 bg-indigo-50 border border-indigo-100 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500/30 text-right"
+                                                                            className="w-24 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500/30 text-right"
                                                                             value={editFormData?.originalCost ?? ''}
                                                                             onChange={(e) => setEditFormData({ ...editFormData, originalCost: e.target.value === '' ? '' : parseFloat(e.target.value) })}
                                                                             onKeyDown={(e) => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
@@ -1189,14 +1189,14 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                             </div>
                                                         </div>
                                                         <div className="grid grid-cols-2">
-                                                            <div className="bg-slate-100 px-4 py-3 text-[11px] font-black text-slate-700 border-r border-indigo-900 flex items-center uppercase tracking-wider text-center">Current Value</div>
-                                                            <div className="bg-white px-4 py-3 text-sm font-mono text-right font-black text-slate-800 flex items-center justify-end tracking-wider">
+                                                            <div className="bg-slate-100 dark:bg-slate-800 px-4 py-3 text-[11px] font-black text-slate-700 dark:text-slate-200 border-r border-indigo-900 flex items-center uppercase tracking-wider text-center">Current Value</div>
+                                                            <div className="bg-white dark:bg-slate-900 px-4 py-3 text-sm font-mono text-right font-black text-slate-800 dark:text-slate-100 flex items-center justify-end tracking-wider">
                                                                 {isEditing ? (
                                                                     <div className="flex items-center gap-1">
-                                                                        <span className="text-indigo-600 font-bold">₱</span>
+                                                                        <span className="text-indigo-600 dark:text-indigo-400 font-bold">₱</span>
                                                                         <input
                                                                             type="number"
-                                                                            className="w-24 bg-indigo-50 border border-indigo-100 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500/30 text-right"
+                                                                            className="w-24 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500/30 text-right"
                                                                             value={editFormData?.currentValue ?? ''}
                                                                             onChange={(e) => setEditFormData({ ...editFormData, currentValue: e.target.value === '' ? '' : parseFloat(e.target.value) })}
                                                                             onKeyDown={(e) => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
@@ -1210,14 +1210,14 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                     </div>
                                                     <div className="border border-indigo-900 overflow-hidden rounded-lg">
                                                         <div className="grid grid-cols-2 border-b border-indigo-900">
-                                                            <div className="bg-slate-100 px-4 py-3 text-[11px] font-black text-slate-700 border-r border-indigo-900 flex items-center uppercase tracking-wider text-center">Total App/Dep</div>
-                                                            <div className="bg-white px-4 py-3 text-sm font-mono text-right font-black text-slate-800 flex items-center justify-end tracking-wider">
+                                                            <div className="bg-slate-100 dark:bg-slate-800 px-4 py-3 text-[11px] font-black text-slate-700 dark:text-slate-200 border-r border-indigo-900 flex items-center uppercase tracking-wider text-center">Total App/Dep</div>
+                                                            <div className="bg-white dark:bg-slate-900 px-4 py-3 text-sm font-mono text-right font-black text-slate-800 dark:text-slate-100 flex items-center justify-end tracking-wider">
                                                                 ₱{((Number(selectedAsset?.currentValue) || 0) - (Number(selectedAsset?.originalCost) || 0)).toLocaleString()}
                                                             </div>
                                                         </div>
                                                         <div className="grid grid-cols-2">
-                                                            <div className="bg-slate-100 px-4 py-3 text-[11px] font-black text-slate-700 border-r border-indigo-900 flex items-center uppercase tracking-wider text-center">Total Repairs</div>
-                                                            <div className="bg-white px-4 py-3 text-sm font-mono text-right font-black text-slate-800 flex items-center justify-end tracking-wider">₱0</div>
+                                                            <div className="bg-slate-100 dark:bg-slate-800 px-4 py-3 text-[11px] font-black text-slate-700 dark:text-slate-200 border-r border-indigo-900 flex items-center uppercase tracking-wider text-center">Total Repairs</div>
+                                                            <div className="bg-white dark:bg-slate-900 px-4 py-3 text-sm font-mono text-right font-black text-slate-800 dark:text-slate-100 flex items-center justify-end tracking-wider">₱0</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1229,28 +1229,28 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                 {activeTab === 'history' && (
                                     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                         <div className="max-w-4xl relative ml-6">
-                                            <div className="absolute left-[23px] top-0 bottom-0 w-0.5 bg-slate-100" />
+                                            <div className="absolute left-[23px] top-0 bottom-0 w-0.5 bg-slate-100 dark:bg-slate-800" />
                                             <div className="space-y-8 relative">
                                                 {(selectedAsset.activity || []).length > 0 ? (
                                                     <>
                                                         {(showFullHistory ? selectedAsset.activity : selectedAsset.activity.slice(0, 3)).map((item, i) => (
                                                             <div key={i} className="flex items-start gap-10 group">
-                                                                <div className="w-12 h-12 rounded-2xl bg-white border-2 border-slate-100 flex items-center justify-center z-10 shadow-sm group-hover:border-indigo-500 group-hover:scale-110 transition-all duration-500">
-                                                                    <Activity className="w-5 h-5 text-indigo-600" />
+                                                                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 flex items-center justify-center z-10 shadow-sm group-hover:border-indigo-500 group-hover:scale-110 transition-all duration-500">
+                                                                    <Activity className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                                                                 </div>
-                                                                <div className="flex-1 bg-slate-50/50 p-6 rounded-3xl border border-slate-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-indigo-500/5 transition-all">
+                                                                <div className="flex-1 bg-slate-50 dark:bg-slate-800/60 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 group-hover:bg-white dark:hover:bg-slate-800 dark:bg-slate-900 group-hover:shadow-xl group-hover:shadow-indigo-500/5 transition-all">
                                                                     <div className="flex items-center justify-between mb-2">
-                                                                        <p className="text-sm font-black text-slate-800">{item.action}</p>
-                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.date}</span>
+                                                                        <p className="text-sm font-black text-slate-800 dark:text-slate-100">{item.action}</p>
+                                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{item.date}</span>
                                                                     </div>
                                                                     <div className="flex items-center gap-4">
-                                                                        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold">
+                                                                        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 font-bold">
                                                                             <User className="w-3.5 h-3.5" />
                                                                             {item.user}
                                                                         </div>
                                                                         <div className="flex items-center gap-1.5">
                                                                             <div className={`w-1.5 h-1.5 rounded-full ${item.status === 'Good' || item.status === 'New' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                                                                            <span className="text-[10px] font-black text-slate-400 uppercase">{item.status}</span>
+                                                                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">{item.status}</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -1261,7 +1261,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                             <div className="flex justify-center ml-20 pt-4">
                                                                 <button
                                                                     onClick={() => setShowFullHistory(!showFullHistory)}
-                                                                    className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50/30 transition-all shadow-sm group/btn"
+                                                                    className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-100 dark:hover:border-indigo-500/20 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all shadow-sm group/btn"
                                                                 >
                                                                     {showFullHistory ? (
                                                                         <>
@@ -1280,10 +1280,10 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                     </>
                                                 ) : (
                                                     <div className="flex flex-col items-center justify-center py-20 text-center">
-                                                        <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-4">
+                                                        <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-3xl flex items-center justify-center mb-4">
                                                             <History className="w-10 h-10 text-slate-200" />
                                                         </div>
-                                                        <p className="text-slate-400 font-black uppercase tracking-widest text-xs">No service history available</p>
+                                                        <p className="text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest text-xs">No service history available</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -1298,23 +1298,23 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                 {
                     showCheckoutModal && ReactDOM.createPortal(
                         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                            <div className="bg-white/95 backdrop-blur-md w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-100/80 overflow-hidden animate-in zoom-in-95 duration-300">
-                                <div className="p-3.5 px-4 border-b border-slate-100 flex items-center justify-between">
+                            <div className="bg-white dark:bg-slate-900/95 backdrop-blur-md w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden animate-in zoom-in-95 duration-300">
+                                <div className="p-3.5 px-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className="p-1.5 bg-indigo-50 border border-indigo-100 rounded-lg shadow-sm">
-                                            <ClipboardList className="w-4 h-4 text-indigo-600" />
+                                        <div className="p-1.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg shadow-sm">
+                                            <ClipboardList className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                                         </div>
                                         <div className="max-w-[200px]">
                                             <h2 className="text-xl font-black text-black tracking-tight leading-none uppercase">Check Out Info</h2>
-                                            <p className="text-[12px] font-black text-slate-900 uppercase tracking-widest mt-1.5 truncate">{selectedAsset?.name}</p>
+                                            <p className="text-[12px] font-black text-slate-900 dark:text-white uppercase tracking-widest mt-1.5 truncate">{selectedAsset?.name}</p>
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => setShowCheckoutModal(false)}
-                                        className="p-1 px-3 flex items-center gap-2 hover:bg-slate-50 text-slate-400 hover:text-rose-500 rounded-full transition-all border border-slate-100/50 hover:border-slate-200"
+                                        className="p-1 px-3 flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/80 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 hover:text-rose-500 rounded-full transition-all border border-slate-100 dark:border-slate-800/50 hover:border-slate-200 dark:border-slate-700"
                                     >
-                                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">Close</span>
-                                        <X className="w-5 h-5 text-slate-900" />
+                                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Close</span>
+                                        <X className="w-5 h-5 text-slate-900 dark:text-white" />
                                     </button>
                                 </div>
 
@@ -1322,10 +1322,10 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                     <div className="space-y-2.5">
                                         {/* Group 1: Timing Details */}
                                         <div className="grid grid-cols-2 gap-2.5">
-                                            <div className="relative group overflow-hidden rounded-xl border border-slate-100 bg-slate-50/50 p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 focus-within:bg-white">
+                                            <div className="relative group overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 focus-within:bg-white dark:bg-slate-900">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="p-1 bg-white rounded-md shadow-sm border border-slate-100 group-focus-within:bg-indigo-600 group-focus-within:border-indigo-600 transition-colors">
-                                                        <Calendar className="w-2.5 h-2.5 text-indigo-600 group-focus-within:text-white" />
+                                                    <div className="p-1 bg-white dark:bg-slate-900 rounded-md shadow-sm border border-slate-100 dark:border-slate-800 group-focus-within:bg-indigo-600 group-focus-within:border-indigo-600 transition-colors">
+                                                        <Calendar className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400 group-focus-within:text-white" />
                                                     </div>
                                                     <div className="flex-1">
                                                         <label className="text-[11px] font-black text-black uppercase tracking-widest block">Check Out</label>
@@ -1338,9 +1338,9 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="relative group overflow-hidden rounded-xl border border-slate-100 bg-slate-50/50 p-2 transition-all focus-within:ring-2 focus-within:ring-rose-500/10 focus-within:border-rose-500/50 focus-within:bg-white">
+                                            <div className="relative group overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-2 transition-all focus-within:ring-2 focus-within:ring-rose-500/10 focus-within:border-rose-500/50 focus-within:bg-white dark:bg-slate-900">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="p-1 bg-white rounded-md shadow-sm border border-slate-100 group-focus-within:bg-rose-500 group-focus-within:border-rose-500 transition-colors">
+                                                    <div className="p-1 bg-white dark:bg-slate-900 rounded-md shadow-sm border border-slate-100 dark:border-slate-800 group-focus-within:bg-rose-500 group-focus-within:border-rose-500 transition-colors">
                                                         <Clock className="w-2.5 h-2.5 text-rose-500 group-focus-within:text-white" />
                                                     </div>
                                                     <div className="flex-1">
@@ -1358,9 +1358,9 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
 
                                         {/* Group 2: Assignment Details */}
                                         <div className="grid grid-cols-2 gap-2.5">
-                                            <div className="relative group rounded-xl border border-slate-100 bg-slate-50/50 p-2 transition-all focus-within:ring-2 focus-within:ring-amber-500/10 focus-within:border-amber-500/50 focus-within:bg-white">
+                                            <div className="relative group rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-2 transition-all focus-within:ring-2 focus-within:ring-amber-500/10 focus-within:border-amber-500/50 focus-within:bg-white dark:bg-slate-900">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="p-1 bg-white rounded-md shadow-sm border border-slate-100 group-focus-within:bg-amber-500 group-focus-within:border-amber-500 transition-colors">
+                                                    <div className="p-1 bg-white dark:bg-slate-900 rounded-md shadow-sm border border-slate-100 dark:border-slate-800 group-focus-within:bg-amber-500 group-focus-within:border-amber-500 transition-colors">
                                                         <User className="w-2.5 h-2.5 text-amber-500 group-focus-within:text-white" />
                                                     </div>
                                                     <div className="flex-1">
@@ -1368,17 +1368,17 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                         <input
                                                             type="text"
                                                             placeholder=""
-                                                            className="w-full bg-transparent border-none p-0 text-sm font-bold text-black focus:ring-0 outline-none placeholder:text-slate-400"
+                                                            className="w-full bg-transparent border-none p-0 text-sm font-bold text-black focus:ring-0 outline-none placeholder:text-slate-400 dark:text-slate-500"
                                                             value={checkoutFormData.checkedOutBy}
                                                             onChange={(e) => setCheckoutFormData({ ...checkoutFormData, checkedOutBy: e.target.value })}
                                                         />
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="relative group rounded-xl border border-slate-100 bg-slate-50/50 p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 focus-within:bg-white">
+                                            <div className="relative group rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 focus-within:bg-white dark:bg-slate-900">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="p-1 bg-white rounded-md shadow-sm border border-slate-100 group-focus-within:bg-indigo-600 group-focus-within:border-indigo-600 transition-colors">
-                                                        <MapPin className="w-2.5 h-2.5 text-indigo-600 group-focus-within:text-white" />
+                                                    <div className="p-1 bg-white dark:bg-slate-900 rounded-md shadow-sm border border-slate-100 dark:border-slate-800 group-focus-within:bg-indigo-600 group-focus-within:border-indigo-600 transition-colors">
+                                                        <MapPin className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400 group-focus-within:text-white" />
                                                     </div>
                                                     <div className="flex-1 relative" ref={jobsiteDropdownRef}>
                                                         <label className="text-[11px] font-black text-black uppercase tracking-widest block">Jobsite/Area</label>
@@ -1386,16 +1386,16 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setShowJobsiteDropdown(!showJobsiteDropdown)}
-                                                                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-0 py-1.5 text-xs font-bold text-black focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none flex items-center justify-between group/js cursor-pointer"
+                                                                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl px-0 py-1.5 text-xs font-bold text-black focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none flex items-center justify-between group/js cursor-pointer"
                                                             >
-                                                                <span className={!checkoutFormData.jobsite ? 'text-slate-400' : 'text-black'}>
+                                                                <span className={!checkoutFormData.jobsite ? 'text-slate-400 dark:text-slate-500' : 'text-black'}>
                                                                     {checkoutFormData.jobsite || 'Select Location'}
                                                                 </span>
-                                                                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-all duration-300 ${showJobsiteDropdown ? 'rotate-180 text-indigo-600' : 'group-hover/js:text-indigo-400'}`} />
+                                                                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-all duration-300 ${showJobsiteDropdown ? 'rotate-180 text-indigo-600 dark:text-indigo-400' : 'group-hover/js:text-indigo-400'}`} />
                                                             </button>
 
                                                             {showJobsiteDropdown && (
-                                                                <div className="absolute top-full left-[-10px] right-[-10px] mt-2 bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 py-2.5 z-[100] animate-in fade-in zoom-in-95 duration-200 ring-1 ring-slate-900/5">
+                                                                <div className="absolute top-full left-[-10px] right-[-10px] mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 dark:border-slate-800 py-2.5 z-[100] animate-in fade-in zoom-in-95 duration-200 ring-1 ring-slate-900/5">
                                                                     <div className="max-h-[160px] overflow-y-auto custom-scrollbar px-1.5">
                                                                         {['NPI Plant', 'Del Monte Plant', 'Balulang Shop', 'EDP Conference Office', 'EDP Admin Office'].map((loc) => (
                                                                             <button
@@ -1407,7 +1407,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                                                 }}
                                                                                 className={`w-full px-3.5 py-2.5 text-left text-[13px] font-bold rounded-xl transition-all flex items-center justify-between group/opt mb-0.5 last:mb-0 ${checkoutFormData.jobsite === loc
                                                                                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
-                                                                                    : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600'
+                                                                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 dark:bg-slate-800/50 hover:text-indigo-600 dark:text-indigo-400'
                                                                                     }`}
                                                                             >
                                                                                 <span className="truncate">{loc}</span>
@@ -1428,10 +1428,10 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                         {/* Conditional Quantity Field */}
                                         {selectedAsset?.quantity > 0 && (
                                             <div className="flex justify-center">
-                                                <div className="w-1/2 relative group overflow-hidden rounded-xl border border-slate-100 bg-slate-50/50 p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 focus-within:bg-white">
+                                                <div className="w-1/2 relative group overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 focus-within:bg-white dark:bg-slate-900">
                                                     <div className="flex items-center gap-2">
-                                                        <div className="p-1 bg-white rounded-md shadow-sm border border-slate-100 group-focus-within:bg-indigo-600 group-focus-within:border-indigo-600 transition-colors">
-                                                            <Hash className="w-2.5 h-2.5 text-indigo-600 group-focus-within:text-white" />
+                                                        <div className="p-1 bg-white dark:bg-slate-900 rounded-md shadow-sm border border-slate-100 dark:border-slate-800 group-focus-within:bg-indigo-600 group-focus-within:border-indigo-600 transition-colors">
+                                                            <Hash className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400 group-focus-within:text-white" />
                                                         </div>
                                                         <div className="flex-1 text-center">
                                                             <label className="text-[11px] font-black text-black uppercase tracking-widest block">Quantity</label>
@@ -1451,7 +1451,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                         )}
 
                                         {/* Group 3: Custodian Data */}
-                                        <div className="rounded-2xl p-3 relative overflow-hidden group/custodian transition-all duration-500 border border-slate-100 bg-slate-50/50 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50">
+                                        <div className="rounded-2xl p-3 relative overflow-hidden group/custodian transition-all duration-500 border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 focus-within:bg-white dark:bg-slate-900 focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50">
                                             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/custodian:opacity-10 transition-opacity">
                                                 <Package className="w-16 h-16 text-indigo-900 -rotate-12" />
                                             </div>
@@ -1462,17 +1462,17 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                     <div className="h-px flex-1 bg-black/10" />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <div className="relative group overflow-hidden rounded-xl border border-slate-100 bg-white/50 p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/5 focus-within:border-indigo-500/30 focus-within:bg-white">
+                                                    <div className="relative group overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/5 focus-within:border-indigo-500/30 focus-within:bg-white dark:bg-slate-900">
                                                         <div className="flex items-center gap-2">
-                                                            <div className="w-5 h-5 rounded-md bg-white border border-slate-200 flex items-center justify-center group-focus-within:bg-slate-900 group-focus-within:border-slate-900 transition-colors">
-                                                                <User className="w-2.5 h-2.5 text-slate-400 group-focus-within:text-white" />
+                                                            <div className="w-5 h-5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center group-focus-within:bg-slate-900 group-focus-within:border-slate-900 transition-colors">
+                                                                <User className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 group-focus-within:text-white" />
                                                             </div>
                                                             <div className="flex-1">
                                                                 <label className="text-[10px] font-black text-black uppercase tracking-widest block">Name</label>
                                                                 <input
                                                                     type="text"
                                                                     placeholder=""
-                                                                    className="w-full bg-transparent border-none p-0 text-sm font-bold text-black focus:ring-0 outline-none placeholder:text-slate-400"
+                                                                    className="w-full bg-transparent border-none p-0 text-sm font-bold text-black focus:ring-0 outline-none placeholder:text-slate-400 dark:text-slate-500"
                                                                     value={checkoutFormData.name}
                                                                     onChange={(e) => setCheckoutFormData({ ...checkoutFormData, name: e.target.value })}
                                                                 />
@@ -1480,27 +1480,27 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                         </div>
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-2">
-                                                        <div className="relative group overflow-hidden rounded-xl border border-slate-100 bg-white/50 p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/5 focus-within:border-indigo-500/30 focus-within:bg-white">
+                                                        <div className="relative group overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/5 focus-within:border-indigo-500/30 focus-within:bg-white dark:bg-slate-900">
                                                             <div className="flex items-center gap-2">
-                                                                <div className="min-w-[20px] h-5 rounded-md bg-white border border-slate-200 flex items-center justify-center group-focus-within:bg-slate-900 group-focus-within:border-slate-900 transition-colors">
-                                                                    <Package className="w-2.5 h-2.5 text-slate-400 group-focus-within:text-white" />
+                                                                <div className="min-w-[20px] h-5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center group-focus-within:bg-slate-900 group-focus-within:border-slate-900 transition-colors">
+                                                                    <Package className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 group-focus-within:text-white" />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <label className="text-[10px] font-black text-black uppercase tracking-widest block">Email</label>
                                                                     <input
                                                                         type="email"
                                                                         placeholder=""
-                                                                        className="w-full bg-transparent border-none p-0 text-[12px] font-bold text-black focus:ring-0 outline-none placeholder:text-slate-400 truncate"
+                                                                        className="w-full bg-transparent border-none p-0 text-[12px] font-bold text-black focus:ring-0 outline-none placeholder:text-slate-400 dark:text-slate-500 truncate"
                                                                         value={checkoutFormData.email}
                                                                         onChange={(e) => setCheckoutFormData({ ...checkoutFormData, email: e.target.value })}
                                                                     />
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div className="relative group overflow-hidden rounded-xl border border-slate-100 bg-white/50 p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/5 focus-within:border-indigo-500/30 focus-within:bg-white">
+                                                        <div className="relative group overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/5 focus-within:border-indigo-500/30 focus-within:bg-white dark:bg-slate-900">
                                                             <div className="flex items-center gap-2">
-                                                                <div className="min-w-[20px] h-5 rounded-md bg-white border border-slate-200 flex items-center justify-center group-focus-within:bg-slate-900 group-focus-within:border-slate-900 transition-colors">
-                                                                    <MapPin className="w-2.5 h-2.5 text-slate-400 group-focus-within:text-white" />
+                                                                <div className="min-w-[20px] h-5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center group-focus-within:bg-slate-900 group-focus-within:border-slate-900 transition-colors">
+                                                                    <MapPin className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 group-focus-within:text-white" />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <label className="text-[10px] font-black text-black uppercase tracking-widest block">Phone</label>
@@ -1509,7 +1509,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                                         placeholder=""
                                                                         maxLength="11"
                                                                         inputMode="numeric"
-                                                                        className="w-full bg-transparent border-none p-0 text-[12px] font-bold text-black focus:ring-0 outline-none placeholder:text-slate-400 truncate"
+                                                                        className="w-full bg-transparent border-none p-0 text-[12px] font-bold text-black focus:ring-0 outline-none placeholder:text-slate-400 dark:text-slate-500 truncate"
                                                                         value={checkoutFormData.phone}
                                                                         onChange={(e) => {
                                                                             const val = e.target.value.replace(/\D/g, '');
@@ -1546,23 +1546,23 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                 {
                     showDeleteModal && ReactDOM.createPortal(
                         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                            <div className="bg-white/95 backdrop-blur-md w-full max-w-sm rounded-[2rem] shadow-2xl border border-slate-100/80 overflow-hidden animate-in zoom-in-95 duration-300">
+                            <div className="bg-white dark:bg-slate-900/95 backdrop-blur-md w-full max-w-sm rounded-[2rem] shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden animate-in zoom-in-95 duration-300">
                                 <div className="p-6 text-center space-y-6">
-                                    <div className="w-20 h-20 bg-rose-50 border-2 border-rose-100 rounded-3xl flex items-center justify-center mx-auto shadow-sm">
-                                        <Trash2 className="w-10 h-10 text-rose-600" />
+                                    <div className="w-20 h-20 bg-rose-50 dark:bg-rose-500/10 border-2 border-rose-100 rounded-3xl flex items-center justify-center mx-auto shadow-sm">
+                                        <Trash2 className="w-10 h-10 text-rose-600 dark:text-rose-400" />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Delete Unit?</h2>
-                                        <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                                            Are you sure you want to delete <span className="font-black text-slate-800">{selectedAsset?.name}</span>? This action cannot be undone.
+                                        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Delete Unit?</h2>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
+                                            Are you sure you want to delete <span className="font-black text-slate-800 dark:text-slate-100">{selectedAsset?.name}</span>? This action cannot be undone.
                                         </p>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3 pt-2">
                                         <button
                                             onClick={() => setShowDeleteModal(false)}
-                                            className="py-3.5 bg-slate-100 text-slate-600 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                                            className="py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 dark:bg-slate-700 transition-all"
                                         >
                                             No, Keep it
                                         </button>
@@ -1583,8 +1583,8 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                 {
                     showAddModal && ReactDOM.createPortal(
                         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                            <div className="bg-white/95 backdrop-blur-md w-full max-w-4xl rounded-[2.5rem] shadow-2xl border border-slate-100/80 overflow-hidden animate-in zoom-in-95 duration-300">
-                                <div className="p-3.5 px-6 border-b border-slate-100 flex items-center justify-between">
+                            <div className="bg-white dark:bg-slate-900/95 backdrop-blur-md w-full max-w-4xl rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden animate-in zoom-in-95 duration-300">
+                                <div className="p-3.5 px-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div>
                                             <h2 className="text-xl font-black text-black tracking-tight leading-none uppercase">Create New Unit</h2>
@@ -1592,7 +1592,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                     </div>
                                     <button
                                         onClick={() => setShowAddModal(false)}
-                                        className="p-2 hover:bg-slate-50 text-slate-400 hover:text-rose-500 rounded-full transition-all"
+                                        className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800/80 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 hover:text-rose-500 rounded-full transition-all"
                                     >
                                         <X className="w-6 h-6" />
                                     </button>
@@ -1602,7 +1602,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                                         {/* Left Column: Picture and Primary Info */}
                                         <div className="lg:col-span-4 space-y-6">
-                                            <div className="relative group aspect-square rounded-3xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center overflow-hidden">
+                                            <div className="relative group aspect-square rounded-3xl bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center overflow-hidden">
                                                 <input
                                                     type="file"
                                                     className="hidden"
@@ -1622,7 +1622,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                 <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                     <label
                                                         htmlFor="add-unit-image"
-                                                        className="bg-white text-slate-900 px-4 py-2 rounded-xl font-bold text-xs cursor-pointer shadow-xl flex items-center gap-2"
+                                                        className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white px-4 py-2 rounded-xl font-bold text-xs cursor-pointer shadow-xl flex items-center gap-2"
                                                     >
                                                         <Camera className="w-4 h-4" /> Change Picture
                                                     </label>
@@ -1630,10 +1630,10 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                             </div>
 
                                             <div className="space-y-4">
-                                                <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Status</label>
+                                                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-1.5">Status</label>
                                                     <select
-                                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                                                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
                                                         value={newAssetFormData.status}
                                                         onChange={(e) => setNewAssetFormData({ ...newAssetFormData, status: e.target.value })}
                                                     >
@@ -1643,10 +1643,10 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                         <option>In Repair</option>
                                                     </select>
                                                 </div>
-                                                <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Condition</label>
+                                                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-1.5">Condition</label>
                                                     <select
-                                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                                                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
                                                         value={newAssetFormData.condition}
                                                         onChange={(e) => setNewAssetFormData({ ...newAssetFormData, condition: e.target.value })}
                                                     >
@@ -1658,11 +1658,11 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                         <option>Critical</option>
                                                     </select>
                                                 </div>
-                                                <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Quantity</label>
+                                                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-1.5">Quantity</label>
                                                     <input
                                                         type="number"
-                                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                                                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
                                                         value={newAssetFormData.quantity}
                                                         onChange={(e) => setNewAssetFormData({ ...newAssetFormData, quantity: e.target.value })}
                                                         onKeyDown={(e) => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
@@ -1677,25 +1677,25 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                         <div className="lg:col-span-8 space-y-8">
                                             {/* Section: General */}
                                             <div className="space-y-4">
-                                                <h3 className="text-[11px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                                                <h3 className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                                                     <div className="w-1 h-3 bg-indigo-600 rounded-full" /> {isConsumables ? 'Item Details' : 'Unit Details'}
                                                 </h3>
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{isConsumables ? 'Item Name' : 'Unit Name'}</label>
+                                                        <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">{isConsumables ? 'Item Name' : 'Unit Name'}</label>
                                                         <input
                                                             type="text"
                                                             required
-                                                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                                                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
                                                             value={newAssetFormData.name}
                                                             onChange={(e) => setNewAssetFormData({ ...newAssetFormData, name: e.target.value })}
                                                             placeholder=""
                                                         />
                                                     </div>
                                                     <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Type</label>
+                                                        <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Type</label>
                                                         <select
-                                                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                                                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
                                                             value={newAssetFormData.type}
                                                             onChange={(e) => setNewAssetFormData({ ...newAssetFormData, type: e.target.value })}
                                                         >
@@ -1705,36 +1705,36 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                         </select>
                                                     </div>
                                                     <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Manufacturer</label>
+                                                        <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Manufacturer</label>
                                                         <input
                                                             type="text"
-                                                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                                                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
                                                             value={newAssetFormData.manufacturer}
                                                             onChange={(e) => setNewAssetFormData({ ...newAssetFormData, manufacturer: e.target.value })}
                                                         />
                                                     </div>
                                                     <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Model</label>
+                                                        <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Model</label>
                                                         <input
                                                             type="text"
-                                                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                                                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
                                                             value={newAssetFormData.model}
                                                             onChange={(e) => setNewAssetFormData({ ...newAssetFormData, model: e.target.value })}
                                                         />
                                                     </div>
                                                     <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Serial #</label>
+                                                        <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Serial #</label>
                                                         <input
                                                             type="text"
-                                                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                                                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
                                                             value={newAssetFormData.serial}
                                                             onChange={(e) => setNewAssetFormData({ ...newAssetFormData, serial: e.target.value })}
                                                         />
                                                     </div>
                                                     <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Location</label>
+                                                        <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Location</label>
                                                         <select
-                                                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                                                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
                                                             value={newAssetFormData.location}
                                                             onChange={(e) => setNewAssetFormData({ ...newAssetFormData, location: e.target.value })}
                                                         >
@@ -1746,9 +1746,9 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                         </select>
                                                     </div>
                                                     <div className="col-span-2 space-y-1.5">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Item Description</label>
+                                                        <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Item Description</label>
                                                         <textarea
-                                                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none min-h-[80px] resize-none"
+                                                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none min-h-[80px] resize-none"
                                                             value={newAssetFormData.description}
                                                             onChange={(e) => setNewAssetFormData({ ...newAssetFormData, description: e.target.value })}
                                                             placeholder=""
@@ -1760,25 +1760,25 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
 
                                                 {/* Section: Financials */}
                                                 <div className="space-y-4">
-                                                    <h3 className="text-[11px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
+                                                    <h3 className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-2">
                                                         <div className="w-1 h-3 bg-emerald-600 rounded-full" /> Financial Appraisal
                                                     </h3>
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <div className="space-y-1.5">
-                                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Original Cost (<Peso className="text-[8px]" />)</label>
+                                                            <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Original Cost (<Peso className="text-[8px]" />)</label>
                                                             <input
                                                                 type="number"
-                                                                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                                                                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
                                                                 value={newAssetFormData.originalCost}
                                                                 onChange={(e) => setNewAssetFormData({ ...newAssetFormData, originalCost: e.target.value === '' ? '' : parseFloat(e.target.value) })}
                                                                 onKeyDown={(e) => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                             />
                                                         </div>
                                                         <div className="space-y-1.5">
-                                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Current Valuation (<Peso className="text-[8px]" />)</label>
+                                                            <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Current Valuation (<Peso className="text-[8px]" />)</label>
                                                             <input
                                                                 type="number"
-                                                                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                                                                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
                                                                 value={newAssetFormData.currentValue}
                                                                 onChange={(e) => setNewAssetFormData({ ...newAssetFormData, currentValue: e.target.value === '' ? '' : parseFloat(e.target.value) })}
                                                                 onKeyDown={(e) => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
@@ -1789,9 +1789,9 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
 
                                                 {/* Section: Notes */}
                                                 <div className="space-y-1.5">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Notes</label>
+                                                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Notes</label>
                                                     <textarea
-                                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none min-h-[100px] resize-none"
+                                                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none min-h-[100px] resize-none"
                                                         value={newAssetFormData.notes}
                                                         onChange={(e) => setNewAssetFormData({ ...newAssetFormData, notes: e.target.value })}
                                                         placeholder=""
@@ -1801,11 +1801,11 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-3 pt-6 border-t border-slate-100">
+                                    <div className="flex items-center gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
                                         <button
                                             type="button"
                                             onClick={() => setShowAddModal(false)}
-                                            className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                                            className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 dark:bg-slate-700 transition-all"
                                         >
                                             Cancel
                                         </button>
@@ -1829,12 +1829,12 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
 
 // Helper Component for Info Fields
 const InfoField = ({ label, value, editable, onChange, type = "text", options }) => (
-    <div className="flex justify-between items-center text-sm border-b border-slate-200 pb-1.5 border-dashed last:border-0 last:pb-0">
-        <span className="text-slate-400 font-bold uppercase tracking-tight text-[10px]">{label}</span>
+    <div className="flex justify-between items-center text-sm border-b border-slate-200 dark:border-slate-700 pb-1.5 border-dashed last:border-0 last:pb-0">
+        <span className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tight text-[10px]">{label}</span>
         {editable ? (
             options ? (
                 <select
-                    className="bg-indigo-50/50 border border-indigo-100 rounded-md px-2 py-0.5 text-xs font-bold text-indigo-600 outline-none focus:ring-1 focus:ring-indigo-500/30"
+                    className="bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-100 dark:border-indigo-500/20 rounded-md px-2 py-0.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 outline-none focus:ring-1 focus:ring-indigo-500/30"
                     value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
                 >
@@ -1843,7 +1843,7 @@ const InfoField = ({ label, value, editable, onChange, type = "text", options })
             ) : (
                 <input
                     type={type}
-                    className="bg-indigo-50/50 border border-indigo-100 rounded-md px-2 py-0.5 text-xs font-bold text-indigo-600 outline-none focus:ring-1 focus:ring-indigo-500/30 text-right w-32"
+                    className="bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-100 dark:border-indigo-500/20 rounded-md px-2 py-0.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 outline-none focus:ring-1 focus:ring-indigo-500/30 text-right w-32"
                     value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
                     onKeyDown={(e) => {
@@ -1854,7 +1854,7 @@ const InfoField = ({ label, value, editable, onChange, type = "text", options })
                 />
             )
         ) : (
-            <span className="text-slate-700 font-black text-right flex-1 ml-4">{value || '-'}</span>
+            <span className="text-slate-700 dark:text-slate-200 font-black text-right flex-1 ml-4">{value || '-'}</span>
         )}
     </div>
 );
