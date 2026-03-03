@@ -473,6 +473,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
         e.preventDefault();
         setIsSubmittingAsset(true);
         const newAssetData = {
+            id: crypto.randomUUID(), // Generate unique ID since DB doesn't auto-increment
             ...newAssetFormData,
             originalCost: newAssetFormData.originalCost === '' ? 0 : Number(newAssetFormData.originalCost),
             currentValue: newAssetFormData.currentValue === '' ? 0 : Number(newAssetFormData.currentValue),
@@ -489,6 +490,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
             returnDue: null,
             lastAdjust: null
         };
+
 
         try {
             const { data, error } = await supabase
