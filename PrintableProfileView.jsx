@@ -780,18 +780,18 @@ const PrintableProfileView = ({ employee, onClose }) => {
                         <div className="font-bold text-slate-800 mb-2 text-[10px]">LIST OF PPES</div>
                         <div className="flex gap-2 overflow-x-auto pb-2">
                             {[
-                                { label: 'SAFETY SHOES', key: 'ppeSafetyShoes', image: '/assets/safety shoes.jpg' },
-                                { label: 'GRIP GLOVES', key: 'ppeGripGloves', image: '/assets/grip gloves.jpg' },
-                                { label: 'COTTON GLOVES', key: 'ppeCottonGloves', image: '/assets/cotton gloves.jpg' },
-                                { label: 'HARDHAT', key: 'ppeHardhat', image: '/assets/hard hat.jpg' },
-                                { label: 'FACESHIELD', key: 'ppeFaceshield', image: '/assets/face shield.jpg' },
-                                { label: 'KN95 MASK', key: 'ppeKn95Mask', image: '/assets/kn95 mask.jpg' },
+                                { label: 'SAFETY SHOES', key: 'ppeSafetyShoes', image: '/assets/safety%20shoes.jpg' },
+                                { label: 'GRIP GLOVES', key: 'ppeGripGloves', image: '/assets/grip%20gloves.jpg' },
+                                { label: 'COTTON GLOVES', key: 'ppeCottonGloves', image: '/assets/cotton%20gloves.jpg' },
+                                { label: 'HARDHAT', key: 'ppeHardhat', image: '/assets/hard%20hat.jpg' },
+                                { label: 'FACESHIELD', key: 'ppeFaceshield', image: '/assets/face%20shield.jpg' },
+                                { label: 'KN95 MASK', key: 'ppeKn95Mask', image: '/assets/kn95%20mask.jpg' },
                                 { label: 'SPECTACLES', key: 'ppeSpectacles', image: '/assets/spectacles.jpg' },
                                 { label: 'EARPLUG', key: 'ppeEarplug', image: '/assets/earplug.jpg' },
-                                { label: 'WELDING MASK', key: 'ppeWeldingMask', image: '/assets/welding mask.jpg' },
-                                { label: 'WELDING GLOVES', key: 'ppeWeldingGloves', image: '/assets/welding gloves.jpg' },
-                                { label: 'WELDING APRON', key: 'ppeWeldingApron', image: '/assets/welding apron.jpg' },
-                                { label: 'FULL BODY HARNESS', key: 'ppeFullBodyHarness', image: '/assets/full body harness.jpg' },
+                                { label: 'WELDING MASK', key: 'ppeWeldingMask', image: '/assets/welding%20mask.jpg' },
+                                { label: 'WELDING GLOVES', key: 'ppeWeldingGloves', image: '/assets/welding%20gloves.jpg' },
+                                { label: 'WELDING APRON', key: 'ppeWeldingApron', image: '/assets/welding%20apron.jpg' },
+                                { label: 'FULL BODY HARNESS', key: 'ppeFullBodyHarness', image: '/assets/full%20body%20harness.jpg' },
                             ].map((ppe, i) => (
                                 <div key={i} className="flex flex-col items-center flex-shrink-0">
                                     <div className={`w-12 h-12 border border-black mb-1 flex items-center justify-center overflow-hidden`}>
