@@ -612,7 +612,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                             <button
                                 onClick={handleAddClick}
                                 className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all hover:-translate-y-1 active:scale-95">
-                                <Plus className="w-5 h-5 font-black" />
+                                <img src="/icon/add-product.png" alt="Add" className="w-5 h-5 object-contain brightness-0 invert" />
                                 New Unit
                             </button>
                         </div>
