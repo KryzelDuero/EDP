@@ -530,7 +530,10 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
     const filteredAssets = (assets || []).filter(asset => {
         const matchesSearch = (asset?.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
             (asset?.id || '').includes(searchQuery);
-        const matchesStatus = statusFilter === 'All' || asset?.status === statusFilter;
+
+        const effectiveStatus = (asset?.quantity === 0 && isConsumables) ? 'Out of Stock' : asset?.status;
+        const matchesStatus = statusFilter === 'All' || effectiveStatus === statusFilter;
+
         const matchesCondition = conditionFilter === 'All' || asset?.condition === conditionFilter;
         const matchesLocation = locationFilter === 'All' || asset?.location === locationFilter;
         return matchesSearch && matchesStatus && matchesCondition && matchesLocation;
@@ -663,8 +666,8 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                 >
                                                     <option value="All">All Status</option>
                                                     <option value="Available">Available</option>
-                                                    <option value="Checked Out">Checked Out</option>
-                                                    <option value="Out of Stock">Out of Stock</option>
+                                                    {!isConsumables && <option value="Checked Out">Checked Out</option>}
+                                                    {isConsumables && <option value="Out of Stock">Out of Stock</option>}
                                                     <option value="Broken">Broken</option>
                                                     <option value="In Repair">In Repair</option>
                                                 </select>
@@ -1000,7 +1003,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                             value={isEditing ? editFormData.status : (selectedAsset.quantity === 0 && isConsumables ? 'Out of Stock' : selectedAsset.status)}
                                                             editable={isEditing}
                                                             onChange={(val) => setEditFormData({ ...editFormData, status: val })}
-                                                            options={['Available', 'Checked Out', 'Broken', 'In Repair']}
+                                                            options={isConsumables ? ['Available', 'Out of Stock', 'Broken', 'In Repair'] : ['Available', 'Checked Out', 'Broken', 'In Repair']}
                                                         />
                                                     </div>
 
@@ -1725,7 +1728,8 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                         onChange={(e) => setNewAssetFormData({ ...newAssetFormData, status: e.target.value })}
                                                     >
                                                         <option>Available</option>
-                                                        <option>Checked Out</option>
+                                                        {!isConsumables && <option>Checked Out</option>}
+                                                        {isConsumables && <option>Out of Stock</option>}
                                                         <option>Broken</option>
                                                         <option>In Repair</option>
                                                     </select>
