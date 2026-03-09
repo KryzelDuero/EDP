@@ -1881,7 +1881,19 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                   <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
                     <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
                       <div className="w-8 h-8 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg flex items-center justify-center">
-                        <Settings className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        <div
+                          className="w-4 h-4 bg-indigo-600 dark:bg-indigo-400"
+                          style={{
+                            maskImage: "url('/icon/padlock.png')",
+                            WebkitMaskImage: "url('/icon/padlock.png')",
+                            maskSize: 'contain',
+                            WebkitMaskSize: 'contain',
+                            maskRepeat: 'no-repeat',
+                            WebkitMaskRepeat: 'no-repeat',
+                            maskPosition: 'center',
+                            WebkitMaskPosition: 'center'
+                          }}
+                        />
                       </div>
                       <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">Change Password</h2>
                     </div>
@@ -1957,7 +1969,19 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                   <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
                     <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
                       <div className="w-8 h-8 bg-purple-50 dark:bg-purple-500/10 rounded-lg flex items-center justify-center">
-                        <ClipboardList className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        <div
+                          className="w-4 h-4 bg-purple-600 dark:bg-purple-400"
+                          style={{
+                            maskImage: "url('/icon/secure.png')",
+                            WebkitMaskImage: "url('/icon/secure.png')",
+                            maskSize: 'contain',
+                            WebkitMaskSize: 'contain',
+                            maskRepeat: 'no-repeat',
+                            WebkitMaskRepeat: 'no-repeat',
+                            maskPosition: 'center',
+                            WebkitMaskPosition: 'center'
+                          }}
+                        />
                       </div>
                       <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">Change PIN</h2>
                     </div>

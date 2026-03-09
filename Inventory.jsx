@@ -563,7 +563,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
             <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
                 <div className="relative">
                     <div className="w-16 h-16 border-4 border-indigo-100 dark:border-indigo-500/20 border-t-indigo-600 rounded-full animate-spin" />
-                    <Package className="w-6 h-6 text-indigo-600 dark:text-indigo-400 absolute inset-0 m-auto animate-pulse" />
+                    <img src="/icon/box.png" className="w-6 h-6 absolute inset-0 m-auto animate-pulse object-contain" alt="" />
                 </div>
                 <div className="text-center">
                     <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Synchronizing Inventory</h3>
@@ -624,18 +624,67 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                     {/* Stats Overview */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         {[
-                            { label: 'Total Inventory', value: stats.total, icon: Package, color: 'from-indigo-500 to-violet-600', iconColor: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10' },
-                            { label: 'Units Ready', value: stats.available, icon: CheckCircle2, color: 'from-emerald-500 to-teal-600', iconColor: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' },
-                            { label: 'Check out Units', value: stats.checkedOut, icon: Clock, color: 'from-blue-500 to-indigo-600', iconColor: 'text-blue-600 bg-blue-50' },
-                            { label: 'Service Units', value: stats.maintenance, icon: Wrench, color: 'from-rose-500 to-red-600', iconColor: 'text-red-600 bg-red-50' }
+                            {
+                                label: 'Total Inventory',
+                                value: stats.total,
+                                icon: "/icon/box.png",
+                                accent: 'border-t-indigo-500',
+                                glow: 'group-hover:bg-indigo-50/30 dark:group-hover:bg-indigo-500/5',
+                                iconStyle: 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400',
+                                iconColor: 'bg-indigo-600 dark:bg-indigo-400',
+                                shadow: 'hover:shadow-indigo-500/20'
+                            },
+                            {
+                                label: 'Units Ready',
+                                value: stats.available,
+                                icon: "/icon/box (1).png",
+                                accent: 'border-t-emerald-500',
+                                glow: 'group-hover:bg-emerald-50/30 dark:group-hover:bg-emerald-500/5',
+                                iconStyle: 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+                                iconColor: 'bg-emerald-600 dark:bg-emerald-400',
+                                shadow: 'hover:shadow-emerald-500/20'
+                            },
+                            {
+                                label: 'Check out Units',
+                                value: stats.checkedOut,
+                                icon: "/icon/check.png",
+                                accent: 'border-t-blue-500',
+                                glow: 'group-hover:bg-blue-50/30 dark:group-hover:bg-blue-500/5',
+                                iconStyle: 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400',
+                                iconColor: 'bg-blue-600 dark:bg-blue-400',
+                                shadow: 'hover:shadow-blue-500/20'
+                            },
+                            {
+                                label: 'Service Units',
+                                value: stats.maintenance,
+                                icon: "/icon/tools.png",
+                                accent: 'border-t-rose-500',
+                                glow: 'group-hover:bg-rose-50/30 dark:group-hover:bg-rose-500/5',
+                                iconStyle: 'bg-rose-50 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400',
+                                iconColor: 'bg-rose-600 dark:bg-rose-400',
+                                shadow: 'hover:shadow-rose-500/20'
+                            }
                         ].map((stat, i) => (
-                            <div key={i} className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 hover:shadow-xl hover:shadow-indigo-500/5 transition-all cursor-default group border-b-4 border-b-transparent hover:border-b-indigo-500">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${stat.iconColor} group-hover:scale-110 transition-transform shadow-sm`}>
-                                    <stat.icon className="w-7 h-7" />
+                            <div key={i} className={`bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-5 transition-all duration-500 cursor-default group border-t-4 ${stat.accent} ${stat.glow} ${stat.shadow} hover:-translate-y-1`}>
+                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${stat.iconStyle} group-hover:scale-110 transition-all duration-500 shadow-inner overflow-hidden relative`}>
+                                    <div className="absolute inset-0 bg-white/40 dark:bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <div
+                                        className={`w-8 h-8 ${stat.iconColor} transition-colors duration-500 relative z-10`}
+                                        style={{
+                                            maskImage: `url('${stat.icon}')`,
+                                            WebkitMaskImage: `url('${stat.icon}')`,
+                                            maskSize: 'contain',
+                                            WebkitMaskSize: 'contain',
+                                            maskRepeat: 'no-repeat',
+                                            WebkitMaskRepeat: 'no-repeat',
+                                            maskPosition: 'center',
+                                            WebkitMaskPosition: 'center'
+                                        }}
+                                    />
                                 </div>
-                                <div>
-                                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{stat.label}</p>
-                                    <p className="text-3xl font-black text-slate-800 dark:text-slate-100 tabular-nums">{stat.value.toString().padStart(2, '0')}</p>
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] mb-1 truncate">{stat.label}</p>
+                                    <p className="text-4xl font-black text-slate-800 dark:text-slate-100 tabular-nums leading-none">{stat.value.toString().padStart(2, '0')}</p>
                                 </div>
                             </div>
                         ))}
@@ -684,7 +733,8 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                     <option value="All">All Conditions</option>
                                                     <option value="Excellent">Excellent</option>
                                                     <option value="Good">Good</option>
-                                                    <option value="New">New</option>
+                                                    <option value="Fair">Fair</option>
+                                                    <option value="Poor">Poor</option>
                                                     <option value="Critical">Critical</option>
                                                     <option value="Broken">Broken</option>
                                                 </select>
@@ -760,15 +810,21 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                     </td>
                                                     <td className="px-6 py-5">
                                                         <div className="flex flex-col gap-1">
-                                                            <span className={`text-xs font-black uppercase tracking-widest ${asset.condition === 'Excellent' ? 'text-emerald-600 dark:text-emerald-400' :
-                                                                asset.condition === 'Good' ? 'text-blue-600' : 'text-rose-600 dark:text-rose-400'
+                                                            <span className={`text-[10px] font-black uppercase tracking-widest ${asset.condition === 'Excellent' ? 'text-emerald-600 dark:text-emerald-400' :
+                                                                    asset.condition === 'Good' ? 'text-indigo-600 dark:text-indigo-400' :
+                                                                        asset.condition === 'Fair' ? 'text-amber-600 dark:text-amber-400' :
+                                                                            asset.condition === 'Poor' ? 'text-orange-600 dark:text-orange-400' :
+                                                                                'text-rose-600 dark:text-rose-400'
                                                                 }`}>
                                                                 {asset.condition}
                                                             </span>
                                                             <div className="w-20 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                                                                 <div
-                                                                    className={`h-full rounded-full ${asset.condition === 'Excellent' ? 'bg-emerald-500 w-full' :
-                                                                        asset.condition === 'Good' ? 'bg-blue-500 w-3/4' : 'bg-rose-500 w-1/4'
+                                                                    className={`h-full rounded-full transition-all duration-700 ${asset.condition === 'Excellent' ? 'bg-emerald-500 w-full' :
+                                                                            asset.condition === 'Good' ? 'bg-indigo-500 w-[80%]' :
+                                                                                asset.condition === 'Fair' ? 'bg-amber-500 w-[60%]' :
+                                                                                    asset.condition === 'Poor' ? 'bg-orange-500 w-[40%]' :
+                                                                                        'bg-rose-500 w-[20%]'
                                                                         }`}
                                                                 />
                                                             </div>
@@ -918,7 +974,19 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                 <button
                                                     onClick={handleEditClick}
                                                     className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-all border border-indigo-100 dark:border-indigo-500/20 [text-shadow:_-1px_0_cyan,_1px_0_red]">
-                                                    <Pencil className="w-4 h-4" /> Edit Unit
+                                                    <div
+                                                        className="w-4 h-4 bg-indigo-600 dark:bg-indigo-400"
+                                                        style={{
+                                                            maskImage: `url('/icon/add-product (1).png')`,
+                                                            WebkitMaskImage: `url('/icon/add-product (1).png')`,
+                                                            maskSize: 'contain',
+                                                            WebkitMaskSize: 'contain',
+                                                            maskRepeat: 'no-repeat',
+                                                            WebkitMaskRepeat: 'no-repeat',
+                                                            maskPosition: 'center',
+                                                            WebkitMaskPosition: 'center'
+                                                        }}
+                                                    /> Edit Unit
                                                 </button>
                                                 <button
                                                     onClick={handleDeleteClick}
