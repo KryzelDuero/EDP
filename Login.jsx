@@ -68,7 +68,7 @@ const Login = ({ onLogin }) => {
 
                 /* ── Left Panel ── */
                 .login-left {
-                    flex: 0 0 42%;
+                    flex: 0 0 60%;
                     position: relative;
                     background-image: url(${edpBg});
                     background-size: cover;
@@ -77,12 +77,6 @@ const Login = ({ onLogin }) => {
                     align-items: center;
                     justify-content: center;
                     overflow: hidden;
-                }
-
-                .login-left-overlay {
-                    position: absolute;
-                    inset: 0;
-                    background: linear-gradient(160deg, rgba(13,71,161,0.78) 0%, rgba(1,87,155,0.72) 50%, rgba(0,60,110,0.80) 100%);
                 }
 
                 .login-left-content {
@@ -97,13 +91,14 @@ const Login = ({ onLogin }) => {
                 }
 
                 .login-logo-ring {
-                    width: 110px;
-                    height: 110px;
+                    width: 100px;
+                    height: 100px;
                     border-radius: 50%;
-                    border: 4px solid rgba(255,255,255,0.85);
+                    border: 3px solid #f1f5f9;
                     overflow: hidden;
-                    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+                    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
                     background: #fff;
+                    margin: 0 auto 1.5rem auto;
                 }
 
                 .login-logo-ring img {
@@ -130,7 +125,7 @@ const Login = ({ onLogin }) => {
 
                 /* ── Right Panel ── */
                 .login-right {
-                    flex: 1;
+                    flex: 0 0 40%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -148,12 +143,14 @@ const Login = ({ onLogin }) => {
                     font-weight: 800;
                     color: #1a237e;
                     margin-bottom: 0.35rem;
+                    text-align: center;
                 }
 
                 .login-form-subtitle {
                     font-size: 0.875rem;
-                    color: #64748b;
+                    color: #1a237e;
                     margin-bottom: 2rem;
+                    text-align: center;
                 }
 
                 .login-field-group {
@@ -164,7 +161,7 @@ const Login = ({ onLogin }) => {
                     display: block;
                     font-size: 0.8rem;
                     font-weight: 600;
-                    color: #1a6fa8;
+                    color: #1a237e;
                     margin-bottom: 0.45rem;
                     letter-spacing: 0.02em;
                 }
@@ -180,15 +177,15 @@ const Login = ({ onLogin }) => {
                 }
 
                 .login-input-wrap:focus-within {
-                    border-color: #1a6fa8;
-                    box-shadow: 0 0 0 3px rgba(26,111,168,0.12);
+                    border-color: #1a237e;
+                    box-shadow: 0 0 0 3px rgba(26,35,126,0.12);
                 }
 
                 .login-input-icon {
                     display: flex;
                     align-items: center;
                     padding: 0 0.75rem;
-                    color: #94a3b8;
+                    color: #1a237e;
                     flex-shrink: 0;
                 }
 
@@ -198,13 +195,13 @@ const Login = ({ onLogin }) => {
                     outline: none;
                     font-size: 0.9rem;
                     font-family: inherit;
-                    color: #1e293b;
+                    color: #1a237e;
                     padding: 0.65rem 0.5rem 0.65rem 0;
                     background: transparent;
                 }
 
                 .login-input::placeholder {
-                    color: #94a3b8;
+                    color: rgba(26,35,126,0.5);
                 }
 
                 .login-eye-btn {
@@ -214,12 +211,12 @@ const Login = ({ onLogin }) => {
                     display: flex;
                     align-items: center;
                     padding: 0 0.75rem;
-                    color: #94a3b8;
+                    color: #1a237e;
                     transition: color 0.2s;
                 }
 
                 .login-eye-btn:hover {
-                    color: #475569;
+                    color: #121858;
                 }
 
                 .login-error {
@@ -235,7 +232,7 @@ const Login = ({ onLogin }) => {
                 .login-submit-btn {
                     width: 100%;
                     padding: 0.75rem;
-                    background: #0d7a7a;
+                    background: #1a237e;
                     color: #ffffff;
                     font-size: 0.95rem;
                     font-weight: 600;
@@ -249,12 +246,12 @@ const Login = ({ onLogin }) => {
                     gap: 0.5rem;
                     transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
                     margin-top: 1.5rem;
-                    box-shadow: 0 4px 14px rgba(13,122,122,0.25);
+                    box-shadow: 0 4px 14px rgba(26,35,126,0.25);
                 }
 
                 .login-submit-btn:hover:not(:disabled) {
-                    background: #0a6666;
-                    box-shadow: 0 6px 18px rgba(13,122,122,0.35);
+                    background: #121858;
+                    box-shadow: 0 6px 18px rgba(26,35,126,0.35);
                     transform: translateY(-1px);
                 }
 
@@ -280,21 +277,16 @@ const Login = ({ onLogin }) => {
             <div className="login-root">
                 {/* ── Left Panel ── */}
                 <div className="login-left">
-                    <div className="login-left-overlay" />
-                    <div className="login-left-content">
-                        <div className="login-logo-ring">
-                            <img src="/logo.jpg" alt="EDP Logo" />
-                        </div>
-                        <div className="login-brand-name">EDP Engineering Services</div>
-                        <div className="login-brand-tagline">Excellence · Dedication · Planning</div>
-                    </div>
                 </div>
 
                 {/* ── Right Panel ── */}
                 <div className="login-right">
                     <div className="login-form-card">
-                        <h1 className="login-form-title">Admin Login</h1>
-                        <p className="login-form-subtitle">Sign in to access the admin portal</p>
+                        <div className="login-logo-ring">
+                            <img src="/logo.jpg" alt="EDP Logo" />
+                        </div>
+                        <h1 className="login-form-title">EDP Engineering Services</h1>
+                        <p className="login-form-subtitle">Excellence · Dedication · Planning</p>
 
                         {error && (
                             <div className="login-error">{error}</div>
