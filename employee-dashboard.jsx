@@ -1844,7 +1844,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                           : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700'
                           }`}
                       >
-                        Equipment/Tools/Electronics
+                        Equipment/Tools/Electronics/Cars
                       </button>
                       <button
                         onClick={() => setCurrentPage('inventory_consumables')}
@@ -1917,7 +1917,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                 }
                 title={
                   currentPage === 'inventory_equipment'
-                    ? "Equipment/Tools/Electronics Inventory"
+                    ? "Equipment/Tools/Electronics/Car Inventory"
                     : currentPage === 'inventory_fixed_assets'
                       ? "Fixed Assets Inventory"
                       : currentPage === 'inventory_ppe'

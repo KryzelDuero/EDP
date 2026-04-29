@@ -125,7 +125,8 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
         activity: Array.isArray(item.activity) ? item.activity : [],
         checkedOutTo: item.checked_out_to || null,
         quantity: item.quantity || 0,
-        description: item.description || ''
+        description: item.description || '',
+        purchaseDate: item.purchase_date || null
     });
 
     const mapToDB = (item) => {
@@ -149,7 +150,8 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
             activity: Array.isArray(item.activity) ? item.activity : [],
             checked_out_to: item.checkedOutTo || null,
             quantity: item.quantity || null,
-            description: item.description || null
+            description: item.description || null,
+            purchase_date: item.purchaseDate || null
         };
 
         if (item.id) {
@@ -167,7 +169,7 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
 
             // Optimize by selecting only essential columns initially
             // Excludes heavy columns like image_url and activity to prevent timeouts
-            const essentialColumns = 'id, name, model, manufacturer, serial, barcode, status, location, condition, type, last_adjust, notes, checked_out_date, return_due, original_cost, current_value, checked_out_to, quantity, description, created_at';
+            const essentialColumns = 'id, name, model, manufacturer, serial, barcode, status, location, condition, type, last_adjust, notes, checked_out_date, return_due, original_cost, current_value, checked_out_to, quantity, description, created_at, purchase_date';
 
             const { data, error } = await supabase
                 .from(tableName)
@@ -464,7 +466,8 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
             notes: '',
             originalCost: '',
             currentValue: '',
-            imageUrl: ''
+            imageUrl: '',
+            purchaseDate: ''
         });
         setShowAddModal(true);
     };
@@ -1108,6 +1111,13 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                             value={isEditing ? editFormData.lastAdjust : selectedAsset.lastAdjust}
                                                             editable={isEditing}
                                                             onChange={(val) => setEditFormData({ ...editFormData, lastAdjust: val })}
+                                                            type="date"
+                                                        />
+                                                        <InfoField
+                                                            label="Purchase Date"
+                                                            value={isEditing ? editFormData.purchaseDate : selectedAsset.purchaseDate}
+                                                            editable={isEditing}
+                                                            onChange={(val) => setEditFormData({ ...editFormData, purchaseDate: val })}
                                                             type="date"
                                                         />
                                                     </div>
@@ -1903,6 +1913,15 @@ const Inventory = ({ title = "Enterprise Unit Control", tableName = "inventory" 
                                                             <option>EDP Conference Office</option>
                                                             <option>EDP Admin Office</option>
                                                         </select>
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Purchase Date</label>
+                                                        <input
+                                                            type="date"
+                                                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                                                            value={newAssetFormData.purchaseDate}
+                                                            onChange={(e) => setNewAssetFormData({ ...newAssetFormData, purchaseDate: e.target.value })}
+                                                        />
                                                     </div>
                                                     <div className="col-span-2 space-y-1.5">
                                                         <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Item Description</label>
